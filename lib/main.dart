@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'core/enums/suit.dart';
@@ -225,6 +226,11 @@ class _GameScreenState extends State<GameScreen> {
   bool manoEsDeTumbo = false;
   String? equipoDecidiendoTumbo;
   bool envitePropuestoPorIA = false;
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  void _reproducirSonido(String archivo) {
+    _sfxPlayer.play(AssetSource('audio/$archivo'));
+  }
   String? turnoDeApuesta;
 
   @override
@@ -243,6 +249,7 @@ class _GameScreenState extends State<GameScreen> {
     final saca = quienReparte == 'ia' ? 'tu' : 'ia';
 
     apuesta.reset();
+    _reproducirSonido('sonido_reparto.mp3');
 
     final enTumbo = score.equipoEnTumbo;
 
@@ -411,6 +418,8 @@ class _GameScreenState extends State<GameScreen> {
       }
       quienSaca = ganador.playerId;
     });
+
+    _reproducirSonido('sonido_recoger_baraja.mp3');
 
     Future.delayed(const Duration(seconds: 5), () {
       if (!mounted) return;
