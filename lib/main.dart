@@ -206,7 +206,7 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late PlayerModel tu;
   late PlayerModel ia;
   late Suit paloDeLaMano;
@@ -232,6 +232,7 @@ class _GameScreenState extends State<GameScreen> {
     _sfxPlayer.play(AssetSource('audio/$archivo'));
   }
   String? turnoDeApuesta;
+  bool _repartiendo = false;
 
   @override
   void initState() {
@@ -249,6 +250,7 @@ class _GameScreenState extends State<GameScreen> {
     final saca = quienReparte == 'ia' ? 'tu' : 'ia';
 
     apuesta.reset();
+    _repartiendo = true;
     _reproducirSonido('sonido_reparto.mp3');
 
     final enTumbo = score.equipoEnTumbo;
@@ -625,7 +627,9 @@ class _GameScreenState extends State<GameScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B3D2E),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
@@ -926,7 +930,110 @@ class _GameScreenState extends State<GameScreen> {
           ],
         ),
         ),
+          ),
+          if (_repartiendo)
+            _AnimacionReparto(
+              quienReparte: quienReparte,
+              onCompleta: () {
+                if (mounted) setState(() => _repartiendo = false);
+              },
+            ),
+        ],
       ),
+    );
+  }
+}
+
+class _AnimacionReparto extends StatefulWidget {
+  final String quienReparte; // 'tu' o 'ia'
+  final VoidCallback onCompleta;
+
+  const _AnimacionReparto({
+    required this.quienReparte,
+    required this.onCompleta,
+  });
+
+  @override
+  State<_AnimacionReparto> createState() => _AnimacionRepartoState();
+}
+
+class _AnimacionRepartoState extends State<_AnimacionReparto>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  // 7 cartas: 3 a la IA, 3 a ti, 1 virada
+  static const int totalCartas = 7;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _controller.forward().whenComplete(widget.onCompleta);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    // Punto de origen (mazo): lado del que reparte.
+    final origen = widget.quienReparte == 'ia'
+        ? Offset(size.width / 2, size.height * 0.18)
+        : Offset(size.width / 2, size.height * 0.82);
+
+    // Destinos: zona IA (arriba), zona tú (abajo), centro (virada).
+    final destinos = <Offset>[
+      Offset(size.width * 0.5, size.height * 0.20), // IA 1
+      Offset(size.width * 0.5, size.height * 0.20), // IA 2
+      Offset(size.width * 0.5, size.height * 0.20), // IA 3
+      Offset(size.width * 0.5, size.height * 0.80), // Tú 1
+      Offset(size.width * 0.5, size.height * 0.80), // Tú 2
+      Offset(size.width * 0.5, size.height * 0.80), // Tú 3
+      Offset(size.width * 0.5, size.height * 0.50), // Virada (centro)
+    ];
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Stack(
+          children: List.generate(totalCartas, (i) {
+            // Cada carta arranca su viaje un poco después que la anterior.
+            final inicio = i / totalCartas * 0.6;
+            final fin = inicio + 0.4;
+            final t = ((_controller.value - inicio) / (fin - inicio)).clamp(0.0, 1.0);
+
+            final pos = Offset.lerp(origen, destinos[i], Curves.easeOut.transform(t))!;
+            final visible = t > 0;
+
+            return Positioned(
+              left: pos.dx - 28,
+              top: pos.dy - 40,
+              child: Opacity(
+                opacity: visible ? 1.0 : 0.0,
+                child: Container(
+                  width: 56,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white24, width: 1),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/cards/trasera.png'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
