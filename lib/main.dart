@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'features/home/presentation/screens/home_screen.dart';
 import 'core/enums/suit.dart';
 import 'features/game/data/models/player_model.dart';
 import 'features/game/data/models/card_model.dart';
@@ -23,7 +24,7 @@ class EnviteApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Envite Canario',
       theme: ThemeData.dark(),
-      home: const GameScreen(),
+      home: const HomeScreen(),
     );
   }
 }
@@ -617,9 +618,45 @@ class _GameScreenState extends State<GameScreen> {
       backgroundColor: const Color(0xFF0B3D2E),
       body: SafeArea(
         child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         child: Column(
           children: [
+            SizedBox(
+              height: 36,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Center(
+                    child: Text(
+                      'ENVITE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                        letterSpacing: 2,
+                        fontFamily: 'Georgia',
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.black26,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
             if (enTumbo)
               Container(
                 width: double.infinity,
@@ -731,7 +768,7 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 74),
+            const SizedBox(height: 36),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
