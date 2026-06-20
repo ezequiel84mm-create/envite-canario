@@ -1,0 +1,6 @@
+build/
+.dart_tool/
+.flutter-plugin-dependencies
+*.lock
+ios/Pods/
+macos/Pods/
