@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
+import '../../../options/presentation/screens/options_screen.dart';
+import '../../../../core/settings/app_settings.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +22,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _player.setReleaseMode(ReleaseMode.loop);
-    _player.play(AssetSource('audio/musica_inicio.mp3'));
+    if (AppSettings.instance.musicaActivada) {
+      _player.play(AssetSource('audio/musica_inicio.mp3'));
+      _silenciado = false;
+    } else {
+      _silenciado = true;
+    }
   }
 
   @override
@@ -111,7 +118,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 14),
                   _ImageButton(
                     asset: 'assets/ui/boton_opciones.jpg',
-                    onTap: null,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const OptionsScreen()),
+                      ).then((_) => setState(() {}));
+                    },
                   ),
                   const SizedBox(height: 14),
                   _ImageButton(

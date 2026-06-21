@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'features/home/presentation/screens/home_screen.dart';
+import 'core/settings/app_settings.dart';
 import 'core/enums/suit.dart';
 import 'features/game/data/models/player_model.dart';
 import 'features/game/data/models/card_model.dart';
@@ -229,6 +230,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
   void _reproducirSonido(String archivo) {
+    if (!AppSettings.instance.efectosActivados) return;
     _sfxPlayer.play(AssetSource('audio/$archivo'));
   }
   String? turnoDeApuesta;
