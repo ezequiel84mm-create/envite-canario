@@ -394,7 +394,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       bazaActual.add(PlayedCard(playerId: 'ia', card: cartaElegida));
     });
 
-    _iaConsideraEnvite();
     _resolverBazaSiCompleta();
   }
 
@@ -446,42 +445,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final huboChico = score.sumarPiedras(ganadorId, valorMano);
     final ganadorPartida = score.ganadorPartida;
 
-    final tituloGanador = ganadorId == 'tu' ? '🎉 ¡Ganaste la mano!' : '😞 La IA ganó la mano';
-
-    String contenido = '$tituloGanador\n\nPiedras -> Tú: ${score.piedrasTu}  |  IA: ${score.piedrasIA}'
-        '\nChicos -> Tú: ${score.chicosTu}  |  IA: ${score.chicosIA}';
-
-    if (huboChico) {
-      contenido += '\n\n🏆 ¡${ganadorId == 'tu' ? 'Ganaste' : 'La IA ganó'} un chico!';
-    }
-
-    if (ganadorPartida != null) {
-      contenido += '\n\n🏅🏅 ¡${ganadorPartida == 'tu' ? 'GANASTE LA PARTIDA' : 'LA IA GANÓ LA PARTIDA'}!';
-    }
-
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(ganadorPartida != null ? 'Fin de la partida' : 'Fin de la mano'),
-        content: Text(contenido),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (ganadorPartida != null) {
-                setState(() {
-                  score.piedrasTu = 0;
-                  score.piedrasIA = 0;
-                  score.chicosTu = 0;
-                  score.chicosIA = 0;
-                });
-              }
-              quienReparte = quienReparte == 'ia' ? 'tu' : 'ia';
-              _repartirNuevaMano();
-            },
-            child: Text(ganadorPartida != null ? 'Nueva partida' : 'Jugar otra mano'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (_) => DialogoFinMano(
+        gano: ganadorId == 'tu',
+        huboChico: huboChico && ganadorPartida == null,
+        finPartida: ganadorPartida != null,
+        piedrasSumadas: valorMano,
+        chicosTu: score.chicosTu,
+        chicosIA: score.chicosIA,
+        ganadorEsTu: ganadorId == 'tu',
+        onContinuar: () {
+          Navigator.pop(context);
+          if (ganadorPartida != null) {
+            setState(() {
+              score.piedrasTu = 0;
+              score.piedrasIA = 0;
+              score.chicosTu = 0;
+              score.chicosIA = 0;
+            });
+          }
+          quienReparte = quienReparte == 'ia' ? 'tu' : 'ia';
+          _repartirNuevaMano();
+        },
       ),
     );
   }
@@ -1035,5 +1022,196 @@ class _AnimacionRepartoState extends State<_AnimacionReparto>
         );
       },
     );
+  }
+}
+
+class DialogoFinMano extends StatelessWidget {
+  final bool gano;
+  final bool huboChico;
+  final bool finPartida;
+  final int piedrasSumadas;
+  final int chicosTu;
+  final int chicosIA;
+  final bool ganadorEsTu;
+  final VoidCallback onContinuar;
+
+  const DialogoFinMano({
+    super.key,
+    required this.gano,
+    required this.huboChico,
+    required this.finPartida,
+    required this.piedrasSumadas,
+    required this.chicosTu,
+    required this.chicosIA,
+    required this.ganadorEsTu,
+    required this.onContinuar,
+  });
+
+  Widget _garbanzo() {
+    return Container(
+      width: 16,
+      height: 13,
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9A24A),
+        border: Border.all(color: const Color(0xFF7A5A28), width: 1.5),
+        borderRadius: BorderRadius.circular(7),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: huboChico ? const Color(0xFFC8870F) : const Color(0xFF8A6A35),
+            width: huboChico ? 3 : 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (finPartida) ..._contenidoPartida() else if (huboChico) ..._contenidoChico() else ..._contenidoMano(),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: onContinuar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                ),
+                child: Text(
+                  finPartida
+                      ? 'Nueva partida'
+                      : (huboChico ? 'Empezar nuevo chico' : 'Jugar otra mano'),
+                  style: const TextStyle(
+                    color: Color(0xFF3A2B12),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _contenidoMano() {
+    return [
+      Text(
+        gano ? '¡GANASTE LA MANO!' : 'LA IA GANÓ LA MANO',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF3A2B12),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x808A6A35)),
+      const SizedBox(height: 14),
+      Text(
+        gano ? 'Sumas' : 'La IA suma',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 6,
+        alignment: WrapAlignment.center,
+        children: List.generate(piedrasSumadas.clamp(0, 12), (_) => _garbanzo()),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        '$piedrasSumadas piedras',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoChico() {
+    return [
+      const Text(
+        '★ ★ ★',
+        style: TextStyle(
+          fontSize: 13,
+          color: Color(0xFF995C0A),
+          letterSpacing: 3,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 2),
+      const Text(
+        '¡CHICO!',
+        style: TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 2,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        ganadorEsTu ? 'Te llevas el chico completo' : 'La IA se lleva el chico',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x80C8870F)),
+      const SizedBox(height: 14),
+      const Text(
+        'Chicos ganados',
+        style: TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 8),
+      const Text('🏆', style: TextStyle(fontSize: 26)),
+      const SizedBox(height: 6),
+      Text(
+        'Tú $chicosTu  ·  IA $chicosIA',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoPartida() {
+    return [
+      const Text('🏅', style: TextStyle(fontSize: 38)),
+      const SizedBox(height: 6),
+      Text(
+        ganadorEsTu ? '¡GANASTE LA PARTIDA!' : 'LA IA GANÓ LA PARTIDA',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Chicos -> Tú $chicosTu  ·  IA $chicosIA',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+    ];
   }
 }
