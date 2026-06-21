@@ -6,6 +6,7 @@ import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
 import '../../../options/presentation/screens/options_screen.dart';
 import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/music_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +23,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _player.setReleaseMode(ReleaseMode.loop);
+    MusicController.instance.registrar(
+      _player,
+      () => AppSettings.instance.musicaActivada && !_silenciado,
+    );
     if (AppSettings.instance.musicaActivada) {
       _player.play(AssetSource('audio/musica_inicio.mp3'));
       _silenciado = false;
@@ -51,11 +56,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _irAJugar() async {
     await _player.stop();
     if (!mounted) return;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const GameScreenWrapper()),
     );
+    _reanudarMusica();
   }
+
+  void _reanudarMusica() {
+    if (!mounted) return;
+    if (AppSettings.instance.musicaActivada && !_silenciado) {
+      _player.resume();
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

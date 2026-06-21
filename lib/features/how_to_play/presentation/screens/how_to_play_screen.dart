@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/reglas.dart';
+import '../../../quick_guide/presentation/screens/quick_guide_screen.dart';
 
 class HowToPlayScreen extends StatelessWidget {
   const HowToPlayScreen({super.key});
@@ -37,8 +38,8 @@ class HowToPlayScreen extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      Opacity(
-                        opacity: 0.45,
+                      GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickGuideScreen())),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 9),
