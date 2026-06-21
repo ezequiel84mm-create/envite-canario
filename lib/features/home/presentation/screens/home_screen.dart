@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../game/presentation/screens/game_screen_wrapper.dart';
+import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -100,7 +101,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 14),
                   _ImageButton(
                     asset: 'assets/ui/boton_como_jugar.jpg',
-                    onTap: null,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HowToPlayScreen()),
+                      );
+                    },
                   ),
                   const SizedBox(height: 14),
                   _ImageButton(
