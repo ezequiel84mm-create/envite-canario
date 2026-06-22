@@ -6,6 +6,7 @@ import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
 import '../../../options/presentation/screens/options_screen.dart';
 import '../../../multiplayer/presentation/screens/game_2v2_screen.dart';
+import '../../../multiplayer/presentation/screens/online_1v1_lobby_screen.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/music_controller.dart';
 
@@ -54,7 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _irAJugar() async {
+  void _reanudarMusica() {
+    if (!mounted) return;
+    if (AppSettings.instance.musicaActivada && !_silenciado) {
+      _player.resume();
+    }
+  }
+
+  // Abre el juego clasico contra la IA (lo que antes hacia JUGAR).
+  Future<void> _irA1vsIA() async {
+    Navigator.pop(context); // cierra el panel flotante
     await _player.stop();
     if (!mounted) return;
     await Navigator.push(
@@ -64,11 +74,65 @@ class _HomeScreenState extends State<HomeScreen> {
     _reanudarMusica();
   }
 
-  void _reanudarMusica() {
-    if (!mounted) return;
-    if (AppSettings.instance.musicaActivada && !_silenciado) {
-      _player.resume();
-    }
+  // Abre la pantalla (provisional) del 1vs1 por wifi.
+  void _irA1vs1() {
+    Navigator.pop(context); // cierra el panel flotante
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const Online1v1LobbyScreen()),
+    );
+  }
+
+  // Muestra el panel flotante con las dos opciones de juego.
+  void _mostrarPanelJugar() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54, // fondo atenuado
+      builder: (_) => GestureDetector(
+        onTap: () => Navigator.pop(context), // tocar fuera cierra
+        child: Material(
+          color: Colors.transparent,
+          child: Center(
+            child: GestureDetector(
+              onTap: () {}, // evita que tocar el panel lo cierre
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 50),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF8A6A35), width: 2),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'ELIGE MODO',
+                      style: TextStyle(
+                        fontFamily: 'Georgia',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF9A3A0A),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _BotonPanelImg(
+                        asset: 'assets/ui/boton_1vsia.jpg', onTap: _irA1vsIA),
+                    const SizedBox(height: 12),
+                    _BotonPanelImg(
+                        asset: 'assets/ui/boton_1vs1.jpg', onTap: _irA1vs1),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
 
@@ -113,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Spacer(flex: 7),
                   _ImageButton(
                     asset: 'assets/ui/boton_jugar.jpg',
-                    onTap: _irAJugar,
+                    onTap: _mostrarPanelJugar,
                   ),
                   const SizedBox(height: 14),
                   _ImageButton(
@@ -162,6 +226,28 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BotonPanelImg extends StatelessWidget {
+  final String asset;
+  final VoidCallback onTap;
+
+  const _BotonPanelImg({required this.asset, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(asset, fit: BoxFit.fill),
+        ),
       ),
     );
   }
