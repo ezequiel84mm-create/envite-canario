@@ -233,6 +233,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     if (!AppSettings.instance.efectosActivados) return;
     _sfxPlayer.play(AssetSource('audio/$archivo'));
   }
+  /// Reproduce el canto de voz según el nivel de apuesta alcanzado.
+  /// nivel 1=Envite, 2=Siete, 3=Nueve, 4=Chico Fuera. (nivel 0 no suena)
+  void _sonidoApuesta(int nivel) {
+    const archivos = {
+      1: 'envido.m4a',
+      2: 'siete.m4a',
+      3: 'nueve.m4a',
+      4: 'chico_fuera.m4a',
+    };
+    final archivo = archivos[nivel];
+    if (archivo != null) {
+      _reproducirSonido(archivo);
+    }
+  }
+  
   String? turnoDeApuesta;
   bool _repartiendo = false;
 
@@ -471,6 +486,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           quienReparte = quienReparte == 'ia' ? 'tu' : 'ia';
           _repartirNuevaMano();
         },
+        onSalir: ganadorPartida != null
+            ? () => Navigator.of(context).popUntil((ruta) => ruta.isFirst)
+            : null,
       ),
     );
   }
@@ -478,29 +496,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _mostrarFinPartida(String ganadorPartida) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Fin de la partida'),
-        content: Text(
-          ganadorPartida == 'tu'
-              ? '🏅🏅 ¡GANASTE LA PARTIDA!'
-              : '🏅🏅 LA IA GANÓ LA PARTIDA',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                score.piedrasTu = 0;
-                score.piedrasIA = 0;
-                score.chicosTu = 0;
-                score.chicosIA = 0;
-              });
-              quienReparte = quienReparte == 'ia' ? 'tu' : 'ia';
-              _repartirNuevaMano();
-            },
-            child: const Text('Nueva partida'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (_) => DialogoFinMano(
+        gano: ganadorPartida == 'tu',
+        huboChico: false,
+        finPartida: true,
+        piedrasSumadas: 0,
+        chicosTu: score.chicosTu,
+        chicosIA: score.chicosIA,
+        ganadorEsTu: ganadorPartida == 'tu',
+        onContinuar: () {
+          Navigator.pop(context);
+          setState(() {
+            score.piedrasTu = 0;
+            score.piedrasIA = 0;
+            score.chicosTu = 0;
+            score.chicosIA = 0;
+          });
+          quienReparte = quienReparte == 'ia' ? 'tu' : 'ia';
+          _repartirNuevaMano();
+        },
+        onSalir: () {
+          Navigator.of(context).popUntil((ruta) => ruta.isFirst);
+        },
       ),
     );
   }
@@ -525,6 +543,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         envitePropuestoPorIA = true;
         mensaje = 'La IA propone ${apuesta.proximoNombre}';
       });
+      _sonidoApuesta(apuesta.nivelIndex + 1);
     }
   }
 
@@ -567,6 +586,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void _lanzarEnvite() {
     if (apuesta.esMaximo) return;
     if (manoEsDeTumbo) return;
+    _sonidoApuesta(apuesta.nivelIndex + 1);
 
     final valorProximo = apuesta.proximoValor;
     final valorSiRechaza = apuesta.valorSiRechaza;
@@ -643,7 +663,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                      onTap: () {
+                        // Cierra cualquier dialogo emergente abierto y vuelve al menu.
+                        Navigator.of(context).popUntil((ruta) => ruta.isFirst);
+                      },
                       child: Container(
                         width: 36,
                         height: 36,
@@ -1036,6 +1059,7 @@ class DialogoFinMano extends StatelessWidget {
   final int chicosIA;
   final bool ganadorEsTu;
   final VoidCallback onContinuar;
+  final VoidCallback? onSalir;
 
   const DialogoFinMano({
     super.key,
@@ -1047,6 +1071,7 @@ class DialogoFinMano extends StatelessWidget {
     required this.chicosIA,
     required this.ganadorEsTu,
     required this.onContinuar,
+   this.onSalir, 
   });
 
   Widget _garbanzo() {
@@ -1110,6 +1135,28 @@ class DialogoFinMano extends StatelessWidget {
                 ),
               ),
             ),
+            if (onSalir != null) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: onSalir,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0x33000000),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1),
+                  ),
+                  child: const Text(
+                    'Salir al menú',
+                    style: TextStyle(
+                      color: Color(0xFF3A2B12),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

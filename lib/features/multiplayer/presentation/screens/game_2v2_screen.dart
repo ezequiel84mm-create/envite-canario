@@ -5,6 +5,7 @@ import '../../../game/presentation/widgets/card_widget.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
 import '../../domain/ai/ai_player_2v2.dart';
+import '../../../../core/settings/music_controller.dart';
 
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
@@ -31,7 +32,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   @override
   void initState() {
     super.initState();
+    MusicController.instance.pausar();
     _repartirNuevaRonda();
+  }
+
+  @override
+  void dispose() {
+    MusicController.instance.reanudar();
+    super.dispose();
   }
 
   void _repartirNuevaRonda() {
