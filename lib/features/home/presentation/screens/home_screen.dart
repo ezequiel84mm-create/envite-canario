@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
@@ -209,17 +208,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       ).then((_) => setState(() {}));
                     },
                   ),
-                  const SizedBox(height: 14),
-                  _ImageButton(
-                    asset: 'assets/ui/boton_salir.jpg',
-                    onTap: () {
-                      if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
-                        exit(0);
-                      } else {
-                        SystemNavigator.pop();
-                      }
-                    },
-                  ),
+                  if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) ...[
+                    const SizedBox(height: 14),
+                    _ImageButton(
+                      asset: 'assets/ui/boton_salir.jpg',
+                      onTap: () => exit(0),
+                    ),
+                  ],
                   const Spacer(flex: 4),
                 ],
               ),
