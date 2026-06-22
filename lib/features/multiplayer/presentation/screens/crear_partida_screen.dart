@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../network/conexion_p2p.dart';
+import 'juego_red_1v1_screen.dart';
 
 /// Pantalla del ANFITRIÓN: crea la partida, muestra el código (IP local)
 /// como texto y como QR, y espera a que el invitado se conecte.
@@ -17,6 +18,7 @@ class _CrearPartidaScreenState extends State<CrearPartidaScreen> {
   String? _codigo;
   bool _conectado = false;
   String _estado = 'Preparando...';
+  bool _partidaEmpezada = false;
 
   @override
   void initState() {
@@ -62,7 +64,7 @@ class _CrearPartidaScreenState extends State<CrearPartidaScreen> {
 
   @override
   void dispose() {
-    _conexion.cerrar();
+    if (!_partidaEmpezada) _conexion.cerrar();
     super.dispose();
   }
 
@@ -158,7 +160,16 @@ class _CrearPartidaScreenState extends State<CrearPartidaScreen> {
               if (_conectado)
                 ElevatedButton(
                   onPressed: () {
-                    // TODO: empezar la partida 1vs1
+                    _partidaEmpezada = true;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => JuegoRed1v1Screen(
+                          conexion: _conexion,
+                          soyAnfitrion: true,
+                        ),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../network/conexion_p2p.dart';
+import 'juego_red_1v1_screen.dart';
 
 /// Pantalla del INVITADO: escanea el QR del anfitrión o escribe el código.
 class UnirsePartidaScreen extends StatefulWidget {
@@ -16,11 +17,12 @@ class _UnirsePartidaScreenState extends State<UnirsePartidaScreen> {
   bool _conectando = false;
   bool _conectado = false;
   String _estado = '';
+  bool _partidaEmpezada = false;
 
   @override
   void dispose() {
     _controlador.dispose();
-    if (!_conectado) _conexion.cerrar();
+    if (!_conectado && !_partidaEmpezada) _conexion.cerrar();
     super.dispose();
   }
 
@@ -151,14 +153,23 @@ class _UnirsePartidaScreenState extends State<UnirsePartidaScreen> {
               if (_conectado)
                 ElevatedButton(
                   onPressed: () {
-                    // TODO: empezar la partida 1vs1
+                    _partidaEmpezada = true;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => JuegoRed1v1Screen(
+                          conexion: _conexion,
+                          soyAnfitrion: false,
+                        ),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                   ),
-                  child: const Text('Esperando al anfitrión...'),
+                  child: const Text('Entrar a la partida'),
                 ),
             ],
           ),
