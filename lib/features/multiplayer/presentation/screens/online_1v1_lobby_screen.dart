@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'crear_partida_screen.dart';
+import 'unirse_partida_screen.dart';
 
 /// Pantalla del 1vs1 por wifi: elegir Crear o Unirse a partida.
 class Online1v1LobbyScreen extends StatelessWidget {
@@ -57,7 +59,11 @@ class Online1v1LobbyScreen extends StatelessWidget {
                         texto: 'CREAR PARTIDA',
                         icono: Icons.add_circle_outline,
                         onTap: () {
-                          // TODO: pantalla de crear partida (mostrar codigo)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const CrearPartidaScreen()),
+                          );
                         },
                       ),
                       const SizedBox(height: 16),
@@ -65,7 +71,11 @@ class Online1v1LobbyScreen extends StatelessWidget {
                         texto: 'UNIRSE A PARTIDA',
                         icono: Icons.login,
                         onTap: () {
-                          // TODO: pantalla de unirse (escribir codigo)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const UnirsePartidaScreen()),
+                          );
                         },
                       ),
                       const SizedBox(height: 18),
