@@ -57,6 +57,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _nivelPropuesto = 0;
   // Quién puede cantar ahora: -1=cualquiera, 0=solo anfitrión, 1=solo invitado.
   int _turnoApuesta = -1;
+  // ===== Tumbo =====
+  // ¿Esta mano es de tumbo (vale 3)? Y ¿quién debe decidir? (-1 nadie)
+  bool _manoEsDeTumbo = false;
+  int _quienDecideTumbo = -1;
 
   // Solo el anfitrión usa esto:
   List<CardModel> _manoAnfitrion = [];
@@ -118,9 +122,23 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _enviteCantado = false;
     _quienCanto = -1;
     _turnoApuesta = -1;
+    _manoEsDeTumbo = false;
+
+    // ¿Alguien llego a 11 piedras exactas? -> debe decidir el tumbo.
+    if (_piedrasAnfitrion == 11) {
+      _quienDecideTumbo = 0;
+    } else if (_piedrasInvitado == 11) {
+      _quienDecideTumbo = 1;
+    } else {
+      _quienDecideTumbo = -1;
+    }
 
     _miMano = _manoAnfitrion;
-    _mensaje = 'Tu turno';
+    _mensaje = _quienDecideTumbo == -1
+        ? 'Tu turno'
+        : (_quienDecideTumbo == 0
+            ? 'Decides el tumbo...'
+            : 'El rival decide el tumbo...');
     setState(() {});
     _enviarEstado();
   }
@@ -149,6 +167,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'quienCanto': _quienCanto,
       'nivelPropuesto': _nivelPropuesto,
       'turnoApuesta': _turnoApuesta,
+      'manoEsDeTumbo': _manoEsDeTumbo,
+      'quienDecideTumbo': _quienDecideTumbo,
     };
     widget.conexion.enviar(MensajeRed(TipoMensaje.estado, datos).codificar());
   }
@@ -172,6 +192,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       } else if (msg.tipo == TipoMensaje.hola) {
         // El invitado pide el estado actual: se lo reenviamos.
         _enviarEstado();
+      } else if (msg.tipo == TipoMensaje.decisionTumbo) {
+        _anfitrionResuelveTumbo(msg.datos['juega'] == true);
       }
     } else {
       // El invitado recibe el estado del anfitrión.
@@ -211,6 +233,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _quienCanto = d['quienCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
       _turnoApuesta = d['turnoApuesta'] ?? -1;
+      _manoEsDeTumbo = d['manoEsDeTumbo'] ?? false;
+      _quienDecideTumbo = d['quienDecideTumbo'] ?? -1;
     });
     // Si apareció un envite nuevo (o subió de nivel), suena el canto.
     final hayEnviteNuevo = _enviteCantado &&
@@ -223,7 +247,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   // ===== Jugar una carta =====
   void _jugarCarta(CardModel carta) {
     if (_rondaTerminada) return;
-    if (_turno != _miAsiento) return; // no es mi turno
+    if (_quienDecideTumbo != -1) return; // hay un tumbo por decidir
+    if (_enviteCantado) return;          // hay un envite por responder
+    if (_turno != _miAsiento) return;    // no es mi turno
 
     if (widget.soyAnfitrion) {
       _anfitrionJuegaCarta(0, carta);
@@ -296,7 +322,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   // Suma las piedras de la apuesta al ganador de la ronda y comprueba chico.
   void _finalizarRonda() {
     final valores = [2, 4, 7, 9, 12];
-    final valorMano = valores[_nivelApuesta];
+    final valorMano = _manoEsDeTumbo ? 3 : valores[_nivelApuesta];
     final ganaAnfitrion = _manosAnfitrion > _manosInvitado;
 
     if (ganaAnfitrion) {
@@ -427,6 +453,48 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _nivelApuesta = 0;
       _repartirComoAnfitrion();
     });
+  }
+
+  // ===== TUMBO: decidir =====
+  void _decidirTumbo(bool juega) {
+    if (widget.soyAnfitrion) {
+      _anfitrionResuelveTumbo(juega);
+    } else {
+      widget.conexion.enviar(
+        MensajeRed(TipoMensaje.decisionTumbo, {'juega': juega}).codificar(),
+      );
+    }
+  }
+
+  void _anfitrionResuelveTumbo(bool juega) {
+    if (_quienDecideTumbo == -1) return;
+    final quien = _quienDecideTumbo;
+
+    if (juega) {
+      // Jugar el tumbo: la mano vale 3, se juega normal.
+      _manoEsDeTumbo = true;
+      _quienDecideTumbo = -1;
+      _mensaje = quien == 0
+          ? 'Juegas el tumbo (vale 3)'
+          : 'El rival juega el tumbo (vale 3)';
+      setState(() {});
+      _enviarEstado();
+    } else {
+      // Retirarse: el rival gana 1 piedra, nueva ronda.
+      final rival = quien == 0 ? 1 : 0;
+      if (rival == 0) {
+        _piedrasAnfitrion += 1;
+      } else {
+        _piedrasInvitado += 1;
+      }
+      _quienDecideTumbo = -1;
+      _mensaje = quien == 0
+          ? 'Te retiras del tumbo. El rival gana 1.'
+          : 'El rival se retira. Ganas 1 piedra.';
+      setState(() {});
+      _enviarEstado();
+      _comprobarChicosYReiniciar();
+    }
   }
 
   @override
@@ -599,6 +667,51 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   // Construye los botones del envite segun la situacion.
   Widget _controlesEnvite() {
     if (_rondaTerminada) return const SizedBox.shrink();
+
+    // ===== TUMBO pendiente de decision =====
+    if (_quienDecideTumbo != -1) {
+      if (_quienDecideTumbo == _miAsiento) {
+        // Me toca decidir.
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              const Text('🔥 ¡TUMBO! Decide:',
+                  style: TextStyle(
+                      color: Colors.orangeAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton(
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    onPressed: () => _decidirTumbo(true),
+                    child: const Text('JUGAR (vale 3)'),
+                  ),
+                  ElevatedButton(
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                    onPressed: () => _decidirTumbo(false),
+                    child: const Text('RETIRARSE'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      } else {
+        // El rival decide.
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text('🔥 El rival decide el tumbo...',
+              style: TextStyle(color: Colors.orangeAccent)),
+        );
+      }
+    }
 
     // Nombres de los niveles para los textos de los botones.
     const nombres = ['Base', 'ENVIDO', 'SIETE', 'NUEVE', 'CHICO FUERA'];
