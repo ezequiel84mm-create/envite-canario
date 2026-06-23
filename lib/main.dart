@@ -872,28 +872,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             if (!enTumbo) ...[
               if (envitePropuestoPorIA) ...[
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: [
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                       onPressed: () => _responderEnviteIA(true),
                       child: const Text('JUEGA'),
                     ),
-                    const SizedBox(width: 12),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: () => _responderEnviteIA(false),
                       child: const Text('PASO'),
                     ),
-                    if (apuesta.nivelIndex + 2 < ApuestaModel.nombres.length) ...[
-                      const SizedBox(width: 12),
+                    if (apuesta.nivelIndex + 2 < ApuestaModel.nombres.length)
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
                         onPressed: () => _responderEnviteIA(true, subir: true),
                         child: Text(ApuestaModel.nombres[apuesta.nivelIndex + 2].toUpperCase()),
                       ),
-                    ],
                   ],
                 ),
               ] else if (!apuesta.esMaximo && (turnoDeApuesta == null || turnoDeApuesta == 'tu')) ...[
