@@ -40,6 +40,15 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   String _mensaje = '';
   bool _rondaTerminada = false;
 
+  // ===== Estado del envite (Pieza 1: esqueleto) =====
+  // Piedras y chicos de cada jugador (perspectiva del anfitrión).
+  int _piedrasAnfitrion = 0;
+  int _piedrasInvitado = 0;
+  int _chicosAnfitrion = 0;
+  int _chicosInvitado = 0;
+  // Nivel de apuesta actual: 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
+  int _nivelApuesta = 0;
+
   // Solo el anfitrión usa esto:
   List<CardModel> _manoAnfitrion = [];
   List<CardModel> _manoInvitado = [];
@@ -96,6 +105,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'manosInvitado': _manosInvitado,
       'rondaTerminada': _rondaTerminada,
       'mensaje': _mensaje,
+      'piedrasAnfitrion': _piedrasAnfitrion,
+      'piedrasInvitado': _piedrasInvitado,
+      'chicosAnfitrion': _chicosAnfitrion,
+      'chicosInvitado': _chicosInvitado,
+      'nivelApuesta': _nivelApuesta,
     };
     widget.conexion.enviar(MensajeRed(TipoMensaje.estado, datos).codificar());
   }
@@ -138,6 +152,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _manosInvitado = d['manosInvitado'];
       _rondaTerminada = d['rondaTerminada'];
       _mensaje = d['mensaje'] ?? '';
+      _piedrasAnfitrion = d['piedrasAnfitrion'] ?? 0;
+      _piedrasInvitado = d['piedrasInvitado'] ?? 0;
+      _chicosAnfitrion = d['chicosAnfitrion'] ?? 0;
+      _chicosInvitado = d['chicosInvitado'] ?? 0;
+      _nivelApuesta = d['nivelApuesta'] ?? 0;
     });
   }
 
@@ -227,6 +246,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     final esMiTurno = _turno == _miAsiento && !_rondaTerminada;
     final misManos = widget.soyAnfitrion ? _manosAnfitrion : _manosInvitado;
     final manosRival = widget.soyAnfitrion ? _manosInvitado : _manosAnfitrion;
+    final misPiedras = widget.soyAnfitrion ? _piedrasAnfitrion : _piedrasInvitado;
+    final piedrasRival = widget.soyAnfitrion ? _piedrasInvitado : _piedrasAnfitrion;
+    final misChicos = widget.soyAnfitrion ? _chicosAnfitrion : _chicosInvitado;
+    final chicosRival = widget.soyAnfitrion ? _chicosInvitado : _chicosAnfitrion;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1B5E20),
@@ -277,6 +300,21 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                   ),
                   const SizedBox(width: 38),
                 ],
+              ),
+            ),
+            // Linea provisional de piedras y chicos (envite)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Piedras  Tu $misPiedras - $piedrasRival Rival     '
+                'Chicos  $misChicos - $chicosRival',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.amber, fontSize: 12),
               ),
             ),
 
