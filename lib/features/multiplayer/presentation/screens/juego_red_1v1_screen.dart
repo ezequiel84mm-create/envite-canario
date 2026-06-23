@@ -366,6 +366,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     } else if (accion == 'subir') {
       // Subir: reenvida al siguiente nivel; ahora responde el otro.
       _nivelPropuesto = _nivelPropuesto + 1;
+      _sonidoApuesta(_nivelPropuesto);
       _quienCanto = _quienCanto == 0 ? 1 : 0; // cambia quien espera respuesta
       _mensaje = 'Envite subido. ¡Responde!';
     }
