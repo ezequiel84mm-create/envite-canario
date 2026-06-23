@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/enums/suit.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
@@ -59,6 +60,24 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   List<CardModel> _manoInvitado = [];
 
   int get _miAsiento => widget.soyAnfitrion ? 0 : 1;
+
+  // Reproductor de efectos (voz de los envites).
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  // Reproduce el canto de voz segun el nivel de apuesta.
+  // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
+  void _sonidoApuesta(int nivel) {
+    const archivos = {
+      1: 'envido.m4a',
+      2: 'siete.m4a',
+      3: 'nueve.m4a',
+      4: 'chico_fuera.m4a',
+    };
+    final archivo = archivos[nivel];
+    if (archivo != null) {
+      _sfxPlayer.play(AssetSource('audio/$archivo'));
+    }
+  }
 
   @override
   void initState() {
@@ -149,6 +168,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // El invitado actualiza su pantalla con el estado recibido.
   void _invitadoRecibeEstado(Map<String, dynamic> d) {
+    final huboEnviteAntes = _enviteCantado;
+    final nivelPropAntes = _nivelPropuesto;
     setState(() {
       _vira = d['vira'] != null ? TraductorCartas.desdeTexto(d['vira']) : null;
       _paloVirado = _vira?.suit;
@@ -175,6 +196,12 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _quienCanto = d['quienCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
     });
+    // Si apareció un envite nuevo (o subió de nivel), suena el canto.
+    final hayEnviteNuevo = _enviteCantado &&
+        (!huboEnviteAntes || _nivelPropuesto != nivelPropAntes);
+    if (hayEnviteNuevo) {
+      _sonidoApuesta(_nivelPropuesto);
+    }
   }
 
   // ===== Jugar una carta =====
@@ -254,6 +281,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   @override
   void dispose() {
+    _sfxPlayer.dispose();
     widget.conexion.cerrar();
     super.dispose();
   }
@@ -282,6 +310,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _enviteCantado = true;
     _quienCanto = asiento;
     _nivelPropuesto = _nivelApuesta + 1;
+    _sonidoApuesta(_nivelPropuesto);
     _mensaje = asiento == 0
         ? 'Cantaste. Esperando al rival...'
         : 'El rival canta. ¡Responde!';
