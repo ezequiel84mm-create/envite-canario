@@ -48,6 +48,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _chicosInvitado = 0;
   // Nivel de apuesta actual: 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
   int _nivelApuesta = 0;
+  // ¿Hay un envite cantado esperando respuesta? Y ¿quién lo cantó? (0/1)
+  bool _enviteCantado = false;
+  int _quienCanto = -1;
+  // Nivel que se está proponiendo al cantar (al cual subiría si se acepta).
+  int _nivelPropuesto = 0;
 
   // Solo el anfitrión usa esto:
   List<CardModel> _manoAnfitrion = [];
@@ -110,6 +115,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'chicosAnfitrion': _chicosAnfitrion,
       'chicosInvitado': _chicosInvitado,
       'nivelApuesta': _nivelApuesta,
+      'enviteCantado': _enviteCantado,
+      'quienCanto': _quienCanto,
+      'nivelPropuesto': _nivelPropuesto,
     };
     widget.conexion.enviar(MensajeRed(TipoMensaje.estado, datos).codificar());
   }
@@ -124,6 +132,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       if (msg.tipo == TipoMensaje.jugarCarta) {
         final carta = TraductorCartas.desdeTexto(msg.datos['carta']);
         if (carta != null) _anfitrionRecibeJugada(carta);
+      } else if (msg.tipo == TipoMensaje.proponerEnvite) {
+        // El invitado (asiento 1) canta un envite.
+        _anfitrionRegistraCanto(1);
       }
     } else {
       // El invitado recibe el estado del anfitrión.
@@ -157,6 +168,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _chicosAnfitrion = d['chicosAnfitrion'] ?? 0;
       _chicosInvitado = d['chicosInvitado'] ?? 0;
       _nivelApuesta = d['nivelApuesta'] ?? 0;
+      _enviteCantado = d['enviteCantado'] ?? false;
+      _quienCanto = d['quienCanto'] ?? -1;
+      _nivelPropuesto = d['nivelPropuesto'] ?? 0;
     });
   }
 
@@ -239,6 +253,37 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   void dispose() {
     widget.conexion.cerrar();
     super.dispose();
+  }
+
+  // ===== ENVITE: cantar =====
+  // Lo llama quien toca el boton ENVIDAR.
+  void _cantarEnvite() {
+    if (_enviteCantado) return;          // ya hay uno pendiente
+    if (_rondaTerminada) return;
+    if (_nivelApuesta >= 4) return;      // ya esta en el maximo
+
+    if (widget.soyAnfitrion) {
+      _anfitrionRegistraCanto(0);        // el anfitrion canta (asiento 0)
+    } else {
+      // El invitado pide al anfitrion proponer envite.
+      widget.conexion.enviar(
+        MensajeRed(TipoMensaje.proponerEnvite, {}).codificar(),
+      );
+    }
+  }
+
+  // El anfitrion registra que alguien (asiento) cantó un envite.
+  void _anfitrionRegistraCanto(int asiento) {
+    if (_enviteCantado) return;
+    if (_nivelApuesta >= 4) return;
+    _enviteCantado = true;
+    _quienCanto = asiento;
+    _nivelPropuesto = _nivelApuesta + 1;
+    _mensaje = asiento == 0
+        ? 'Cantaste. Esperando al rival...'
+        : 'El rival canta. ¡Responde!';
+    setState(() {});
+    _enviarEstado();
   }
 
   @override
@@ -366,6 +411,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
               ),
             ),
 
+            // ===== Controles del envite =====
+            _controlesEnvite(),
+
             // Tus cartas (abajo)
             Padding(
               padding: const EdgeInsets.only(top: 8, bottom: 14),
@@ -403,6 +451,79 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         ),
       ),
     );
+  }
+
+  // Construye los botones del envite segun la situacion.
+  Widget _controlesEnvite() {
+    if (_rondaTerminada) return const SizedBox.shrink();
+
+    // Nombres de los niveles para los textos de los botones.
+    const nombres = ['Base', 'ENVIDO', 'SIETE', 'NUEVE', 'CHICO FUERA'];
+
+    // CASO A: hay un envite cantado y yo NO fui quien cantó -> debo responder.
+    if (_enviteCantado && _quienCanto != _miAsiento) {
+      final puedeSubir = _nivelPropuesto < 4;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          children: [
+            Text('El rival canta ${nombres[_nivelPropuesto]}',
+                style: const TextStyle(
+                    color: Colors.amber, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  onPressed: () {}, // Pieza 3
+                  child: const Text('JUEGO'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () {}, // Pieza 3
+                  child: const Text('PASO'),
+                ),
+                if (puedeSubir)
+                  ElevatedButton(
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    onPressed: () {}, // Pieza 3
+                    child: Text(nombres[_nivelPropuesto + 1]),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // CASO B: hay un envite cantado y YO fui quien cantó -> espero.
+    if (_enviteCantado && _quienCanto == _miAsiento) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Text('Esperando respuesta del rival...',
+            style: TextStyle(color: Colors.white70)),
+      );
+    }
+
+    // CASO C: no hay envite pendiente -> puedo cantar (si no esta al maximo).
+    if (_nivelApuesta < 4) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFEFAF1F),
+            foregroundColor: const Color(0xFF3A2B12),
+          ),
+          onPressed: _cantarEnvite,
+          child: Text(nombres[_nivelApuesta + 1]),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _marcador(String titulo, int valor, Color color) {
