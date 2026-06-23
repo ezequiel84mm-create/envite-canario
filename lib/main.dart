@@ -217,6 +217,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late String quienSaca;
 
   List<PlayedCard> bazaActual = [];
+  bool _resolviendoBaza = false; // bloquea jugar mientras se resuelve/recoge
   int bazasGanadasTu = 0;
   int bazasGanadasIA = 0;
   String? mensaje;
@@ -356,8 +357,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _jugarCartaTu(CardModel carta) {
+    if (_resolviendoBaza) return; // baza en proceso: ignora toques
     if (envitePropuestoPorIA) return;
     if (quienSaca != 'tu' && bazaActual.isEmpty) return;
+    if (bazaActual.length >= 2) return; // ya hay dos cartas en mesa
     if (!_cartasValidasParaTi.contains(carta)) return;
 
     setState(() {
@@ -416,6 +419,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _resolverBazaSiCompleta() {
     if (bazaActual.length < 2) return;
+    _resolviendoBaza = true; // bloquea jugar hasta recoger
 
     final ganador = TrickEngine.determinarGanador(
       jugadas: bazaActual,
@@ -439,10 +443,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
     _reproducirSonido('sonido_recoger_baraja.mp3');
 
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
       setState(() {
         bazaActual = [];
+        _resolviendoBaza = false;
       });
 
       if (bazasGanadasTu == 2 || bazasGanadasIA == 2 || (tu.hand.isEmpty && ia.hand.isEmpty)) {
