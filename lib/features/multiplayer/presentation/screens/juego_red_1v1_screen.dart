@@ -55,6 +55,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _quienCanto = -1;
   // Nivel que se está proponiendo al cantar (al cual subiría si se acepta).
   int _nivelPropuesto = 0;
+  // Quién puede cantar ahora: -1=cualquiera, 0=solo anfitrión, 1=solo invitado.
+  int _turnoApuesta = -1;
 
   // Solo el anfitrión usa esto:
   List<CardModel> _manoAnfitrion = [];
@@ -115,6 +117,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _manosInvitado = 0;
     _enviteCantado = false;
     _quienCanto = -1;
+    _turnoApuesta = -1;
 
     _miMano = _manoAnfitrion;
     _mensaje = 'Tu turno';
@@ -145,6 +148,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'enviteCantado': _enviteCantado,
       'quienCanto': _quienCanto,
       'nivelPropuesto': _nivelPropuesto,
+      'turnoApuesta': _turnoApuesta,
     };
     widget.conexion.enviar(MensajeRed(TipoMensaje.estado, datos).codificar());
   }
@@ -206,6 +210,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _enviteCantado = d['enviteCantado'] ?? false;
       _quienCanto = d['quienCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
+      _turnoApuesta = d['turnoApuesta'] ?? -1;
     });
     // Si apareció un envite nuevo (o subió de nivel), suena el canto.
     final hayEnviteNuevo = _enviteCantado &&
@@ -321,6 +326,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     if (_enviteCantado) return;          // ya hay uno pendiente
     if (_rondaTerminada) return;
     if (_nivelApuesta >= 4) return;      // ya esta en el maximo
+    // Solo puede cantar quien tenga el turno de apuesta (o cualquiera si -1).
+    if (_turnoApuesta != -1 && _turnoApuesta != _miAsiento) return;
 
     if (widget.soyAnfitrion) {
       _anfitrionRegistraCanto(0);        // el anfitrion canta (asiento 0)
@@ -366,9 +373,12 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
     if (accion == 'juego') {
       // Aceptar: la apuesta sube al nivel propuesto.
+      // El que acepto es el rival del que canto; solo el podra recantar.
+      final aceptante = _quienCanto == 0 ? 1 : 0;
       _nivelApuesta = _nivelPropuesto;
       _enviteCantado = false;
       _quienCanto = -1;
+      _turnoApuesta = aceptante; // solo el que acepto puede subir
       _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
       // Rechazar: el que canto gana las piedras del nivel anterior.
@@ -641,8 +651,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       );
     }
 
-    // CASO C: no hay envite pendiente -> puedo cantar (si no esta al maximo).
-    if (_nivelApuesta < 4) {
+    // CASO C: no hay envite pendiente -> puedo cantar (si no esta al maximo
+    // y si tengo el turno de apuesta).
+    final puedoCantar = _turnoApuesta == -1 || _turnoApuesta == _miAsiento;
+    if (_nivelApuesta < 4 && puedoCantar) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: ElevatedButton(
