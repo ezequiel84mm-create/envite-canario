@@ -111,6 +111,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _cartaRival = null;
     _turno = 0;
     _rondaTerminada = false;
+    _manosAnfitrion = 0;
+    _manosInvitado = 0;
+    _enviteCantado = false;
+    _quienCanto = -1;
 
     _miMano = _manoAnfitrion;
     _mensaje = 'Tu turno';
@@ -277,13 +281,30 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _cartaMia = null;
     _cartaRival = null;
 
-    // ¿Se acabaron las cartas?
-    if (_manoAnfitrion.isEmpty && _manoInvitado.isEmpty) {
-      _rondaTerminada = true;
-      _mensaje = _manosAnfitrion > _manosInvitado
-          ? '¡Ganaste la ronda! ($_manosAnfitrion-$_manosInvitado)'
-          : 'El rival gana la ronda ($_manosAnfitrion-$_manosInvitado)';
+    // ¿Termina la ronda? Al ganar 2 bazas o agotarse las cartas.
+    final cartasAgotadas = _manoAnfitrion.isEmpty && _manoInvitado.isEmpty;
+    if (_manosAnfitrion >= 2 || _manosInvitado >= 2 || cartasAgotadas) {
+      _finalizarRonda();
     }
+  }
+
+  // Suma las piedras de la apuesta al ganador de la ronda y comprueba chico.
+  void _finalizarRonda() {
+    final valores = [2, 4, 7, 9, 12];
+    final valorMano = valores[_nivelApuesta];
+    final ganaAnfitrion = _manosAnfitrion > _manosInvitado;
+
+    if (ganaAnfitrion) {
+      _piedrasAnfitrion += valorMano;
+    } else {
+      _piedrasInvitado += valorMano;
+    }
+
+    _mensaje = ganaAnfitrion
+        ? 'Ganaste la ronda (+$valorMano piedras)'
+        : 'El rival gana la ronda (+$valorMano piedras)';
+
+    _comprobarChicosYReiniciar();
   }
 
   @override
