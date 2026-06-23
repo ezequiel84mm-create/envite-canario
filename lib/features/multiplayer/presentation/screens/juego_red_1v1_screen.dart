@@ -135,6 +135,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       } else if (msg.tipo == TipoMensaje.proponerEnvite) {
         // El invitado (asiento 1) canta un envite.
         _anfitrionRegistraCanto(1);
+      } else if (msg.tipo == TipoMensaje.respuestaEnvite) {
+        // El invitado responde a un envite.
+        _anfitrionResuelveRespuesta(msg.datos['accion']);
       }
     } else {
       // El invitado recibe el estado del anfitrión.
@@ -284,6 +287,77 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         : 'El rival canta. ¡Responde!';
     setState(() {});
     _enviarEstado();
+  }
+
+  // ===== ENVITE: responder (Pieza 3) =====
+  // Lo llama quien debe responder al envite cantado.
+  void _responderEnvite(String accion) {
+    // accion: 'juego' (aceptar), 'paso' (rechazar), 'subir'
+    if (widget.soyAnfitrion) {
+      _anfitrionResuelveRespuesta(accion);
+    } else {
+      widget.conexion.enviar(
+        MensajeRed(TipoMensaje.respuestaEnvite, {'accion': accion}).codificar(),
+      );
+    }
+  }
+
+  // El anfitrion resuelve la respuesta al envite.
+  void _anfitrionResuelveRespuesta(String accion) {
+    if (!_enviteCantado) return;
+
+    if (accion == 'juego') {
+      // Aceptar: la apuesta sube al nivel propuesto.
+      _nivelApuesta = _nivelPropuesto;
+      _enviteCantado = false;
+      _quienCanto = -1;
+      _mensaje = 'Envite aceptado. Seguid jugando.';
+    } else if (accion == 'paso') {
+      // Rechazar: el que canto gana las piedras del nivel anterior.
+      final valores = [2, 4, 7, 9, 12];
+      final nivelAnterior = _nivelPropuesto - 1; // el que estaba antes de cantar
+      final ganaPiedras = nivelAnterior == 0 ? 1 : valores[nivelAnterior];
+
+      if (_quienCanto == 0) {
+        _piedrasAnfitrion += ganaPiedras;
+      } else {
+        _piedrasInvitado += ganaPiedras;
+      }
+      _enviteCantado = false;
+      final quien = _quienCanto;
+      _quienCanto = -1;
+      _mensaje = quien == 0
+          ? 'El rival pasó. Anfitrión gana $ganaPiedras.'
+          : 'Has pasado. El rival gana $ganaPiedras.';
+      // Tras pasar, la mano del envite termina: nueva ronda.
+      _comprobarChicosYReiniciar();
+    } else if (accion == 'subir') {
+      // Subir: reenvida al siguiente nivel; ahora responde el otro.
+      _nivelPropuesto = _nivelPropuesto + 1;
+      _quienCanto = _quienCanto == 0 ? 1 : 0; // cambia quien espera respuesta
+      _mensaje = 'Envite subido. ¡Responde!';
+    }
+    setState(() {});
+    _enviarEstado();
+  }
+
+  // Comprueba si alguien llego a 12 piedras (un chico) y reinicia la ronda.
+  void _comprobarChicosYReiniciar() {
+    if (_piedrasAnfitrion >= 12) {
+      _chicosAnfitrion++;
+      _piedrasAnfitrion = 0;
+      _piedrasInvitado = 0;
+    } else if (_piedrasInvitado >= 12) {
+      _chicosInvitado++;
+      _piedrasAnfitrion = 0;
+      _piedrasInvitado = 0;
+    }
+    // Reparte una nueva ronda (el anfitrion).
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      _nivelApuesta = 0;
+      _repartirComoAnfitrion();
+    });
   }
 
   @override
@@ -477,19 +551,19 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
               children: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  onPressed: () {}, // Pieza 3
+                  onPressed: () => _responderEnvite('juego'),
                   child: const Text('JUEGO'),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {}, // Pieza 3
+                  onPressed: () => _responderEnvite('paso'),
                   child: const Text('PASO'),
                 ),
                 if (puedeSubir)
                   ElevatedButton(
                     style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                    onPressed: () {}, // Pieza 3
+                    onPressed: () => _responderEnvite('subir'),
                     child: Text(nombres[_nivelPropuesto + 1]),
                   ),
               ],
