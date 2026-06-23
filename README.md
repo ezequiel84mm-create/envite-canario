@@ -1,17 +1,34 @@
-# envite_canario
+# Envite Canario 🃏
 
-A new Flutter project.
+Juego de cartas canario para móvil, construido con Flutter.
 
-## Getting Started
+## ¿Qué es el Envite?
 
-This project is a starting point for a Flutter application.
+El **Envite** es un juego de cartas tradicional de las Islas Canarias que se juega con baraja española. Esta app permite jugar partidas completas con las reglas auténticas: envites, tumbos y conteo de piedras.
 
-A few resources to get you started if this is your first Flutter project:
+## Modos de juego
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **1 vs IA** — juega contra la máquina con lógica de decisión automática.
+- **1 vs 1 en red** — reta a otro jugador en la misma red local vía QR.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Características
+
+- Reglas completas del juego (envite, reenvite, tumbo forzoso a 11 piedras).
+- Guía rápida con audio para aprender las reglas.
+- Diseño de mesa estilo tradicional con marcador de garbanzos y abanicos.
+- Multijugador en red local con emparejamiento por código QR.
+
+## Requisitos
+
+- [Flutter](https://docs.flutter.dev/get-started/install) ≥ 3.12
+
+## Ejecutar en local
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Publicación
+
+Antes de publicar en tiendas, revisar el checklist en [PREPARAR_PUBLICACION.md](PREPARAR_PUBLICACION.md).
