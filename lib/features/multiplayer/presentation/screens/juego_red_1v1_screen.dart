@@ -95,6 +95,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _repartirComoAnfitrion();
     } else {
       _mensaje = 'Esperando al anfitrión...';
+      // Pide el estado actual por si el anfitrion ya repartio.
+      widget.conexion.enviar(MensajeRed(TipoMensaje.hola, {}).codificar());
     }
   }
 
@@ -159,6 +161,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       } else if (msg.tipo == TipoMensaje.respuestaEnvite) {
         // El invitado responde a un envite.
         _anfitrionResuelveRespuesta(msg.datos['accion']);
+      } else if (msg.tipo == TipoMensaje.hola) {
+        // El invitado pide el estado actual: se lo reenviamos.
+        _enviarEstado();
       }
     } else {
       // El invitado recibe el estado del anfitrión.
