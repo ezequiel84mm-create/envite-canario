@@ -272,6 +272,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _reproducirSonido('sonido_reparto.mp3');
 
     final enTumbo = score.equipoEnTumbo;
+    final forzoso = score.tumboForzoso;
 
     setState(() {
       tu = resultado.players[0];
@@ -281,16 +282,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       bazaActual = [];
       bazasGanadasTu = 0;
       bazasGanadasIA = 0;
-      mensaje = null;
+      mensaje = forzoso ? '\u{1F525} ¡Tumbo forzoso! Hay que jugar.' : null;
       quienSaca = saca;
       pilaGanadaTu = [];
       pilaGanadaIA = [];
-      manoEsDeTumbo = false;
-      equipoDecidiendoTumbo = enTumbo;
+      manoEsDeTumbo = forzoso;
+      equipoDecidiendoTumbo = forzoso ? null : enTumbo;
       turnoDeApuesta = null;
     });
 
-    if (enTumbo != null) {
+    if (!forzoso && enTumbo != null) {
       if (enTumbo == 'ia') {
         Future.delayed(const Duration(seconds: 2), _iaDecideTumbo);
       }

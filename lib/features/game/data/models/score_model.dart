@@ -44,6 +44,10 @@ class ScoreModel {
     return null;
   }
 
+  /// True si AMBOS estan en tumbo (11 piedras): tumbo forzoso, hay que jugar.
+  bool get tumboForzoso =>
+      piedrasTu == umbralTumbo && piedrasIA == umbralTumbo;
+
   /// Devuelve el id del ganador de la partida si alguien llegó a 2 chicos,
   /// o null si la partida sigue.
   String? get ganadorPartida {

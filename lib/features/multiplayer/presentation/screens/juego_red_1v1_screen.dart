@@ -124,21 +124,32 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _turnoApuesta = -1;
     _manoEsDeTumbo = false;
 
-    // ¿Alguien llego a 11 piedras exactas? -> debe decidir el tumbo.
-    if (_piedrasAnfitrion == 11) {
-      _quienDecideTumbo = 0;
-    } else if (_piedrasInvitado == 11) {
-      _quienDecideTumbo = 1;
+    // Tumbo: comprobamos quien tiene 11 piedras.
+    final anfitrionEnTumbo = _piedrasAnfitrion == 11;
+    final invitadoEnTumbo = _piedrasInvitado == 11;
+
+    if (anfitrionEnTumbo && invitadoEnTumbo) {
+      // TUMBO FORZOSO: ambos a 11 -> obligatorio jugar, sin decision.
+      _manoEsDeTumbo = true;
+      _quienDecideTumbo = -1;
+    } else if (anfitrionEnTumbo) {
+      _quienDecideTumbo = 0; // el anfitrion decide
+    } else if (invitadoEnTumbo) {
+      _quienDecideTumbo = 1; // el invitado decide
     } else {
       _quienDecideTumbo = -1;
     }
 
     _miMano = _manoAnfitrion;
-    _mensaje = _quienDecideTumbo == -1
-        ? 'Tu turno'
-        : (_quienDecideTumbo == 0
-            ? 'Decides el tumbo...'
-            : 'El rival decide el tumbo...');
+    if (anfitrionEnTumbo && invitadoEnTumbo) {
+      _mensaje = '🔥 ¡Tumbo forzoso! Hay que jugar.';
+    } else if (_quienDecideTumbo == -1) {
+      _mensaje = 'Tu turno';
+    } else if (_quienDecideTumbo == 0) {
+      _mensaje = 'Decides el tumbo...';
+    } else {
+      _mensaje = 'El rival decide el tumbo...';
+    }
     setState(() {});
     _enviarEstado();
   }
