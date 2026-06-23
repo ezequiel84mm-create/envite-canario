@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../../../../core/settings/music_controller.dart';
 import '../../../../core/enums/suit.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
@@ -82,6 +83,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   @override
   void initState() {
     super.initState();
+    MusicController.instance.pausar();
     // Escuchar mensajes del otro jugador.
     widget.conexion.alRecibir = _alRecibirMensaje;
     widget.conexion.alDesconectar = () {
@@ -281,6 +283,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   @override
   void dispose() {
+    MusicController.instance.reanudar();
     _sfxPlayer.dispose();
     widget.conexion.cerrar();
     super.dispose();
