@@ -332,11 +332,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     if (ganoAnfitrion) {
       _manosAnfitrion++;
       _turno = 0;
-      _mensaje = 'Ganaste la mano';
+      _mensaje = 'Mano para el anfitrión';
     } else {
       _manosInvitado++;
       _turno = 1;
-      _mensaje = 'El rival gana la mano';
+      _mensaje = 'Mano para el invitado';
     }
 
     _cartaMia = null;
@@ -364,8 +364,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _ganadorDialogoAsiento = ganaAnfitrion ? 0 : 1;
     _piedrasSumadasDialogo = valorMano;
     _mensaje = ganaAnfitrion
-        ? 'Ganaste la ronda (+$valorMano piedras)'
-        : 'El rival gana la ronda (+$valorMano piedras)';
+        ? 'Ronda para el anfitrión (+$valorMano)'
+        : 'Ronda para el invitado (+$valorMano)';
 
     _comprobarChicoYMostrarDialogo();
   }
@@ -453,8 +453,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       final quien = _quienCanto;
       _quienCanto = -1;
       _mensaje = quien == 0
-          ? 'El rival pasó. Anfitrión gana $ganaPiedras.'
-          : 'Has pasado. El rival gana $ganaPiedras.';
+          ? 'Pasan. Anfitrión gana $ganaPiedras.'
+          : 'Pasan. Invitado gana $ganaPiedras.';
       // Tras pasar, la mano del envite termina: nueva ronda.
       _ganadorDialogoAsiento = quien;
       _piedrasSumadasDialogo = ganaPiedras;
@@ -528,8 +528,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _manoEsDeTumbo = true;
       _quienDecideTumbo = -1;
       _mensaje = quien == 0
-          ? 'Juegas el tumbo (vale 3)'
-          : 'El rival juega el tumbo (vale 3)';
+          ? 'El anfitrión juega el tumbo (vale 3)'
+          : 'El invitado juega el tumbo (vale 3)';
       setState(() {});
       _enviarEstado();
     } else {
@@ -542,8 +542,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       }
       _quienDecideTumbo = -1;
       _mensaje = quien == 0
-          ? 'Te retiras del tumbo. El rival gana 1.'
-          : 'El rival se retira. Ganas 1 piedra.';
+          ? 'El anfitrión se retira. Invitado gana 1.'
+          : 'El invitado se retira. Anfitrión gana 1.';
       _ganadorDialogoAsiento = rival;
       _piedrasSumadasDialogo = 1;
       _comprobarChicoYMostrarDialogo();
