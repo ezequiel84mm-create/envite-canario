@@ -334,7 +334,19 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
     // ¿Están las dos cartas en mesa?
     if (_cartaMia != null && _cartaRival != null) {
-      _resolverBaza();
+      // Mostramos las dos cartas un momento ANTES de resolver,
+      // para que de tiempo a verlas en ambos dispositivos.
+      _mensaje = 'Baza completa';
+      _miMano = _manoAnfitrion;
+      setState(() {});
+      _enviarEstado();
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        _resolverBaza();
+        setState(() {});
+        _enviarEstado();
+      });
+      return;
     } else {
       _turno = asiento == 0 ? 1 : 0;
       _mensaje = _turno == 0 ? 'Tu turno' : 'Turno del rival';
