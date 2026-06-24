@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'core/settings/voces.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'features/home/presentation/screens/home_screen.dart';
@@ -236,17 +237,20 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
   /// Reproduce el canto de voz según el nivel de apuesta alcanzado.
   /// nivel 1=Envite, 2=Siete, 3=Nueve, 4=Chico Fuera. (nivel 0 no suena)
-  void _sonidoApuesta(int nivel) {
-    const archivos = {
-      1: 'envido.m4a',
-      2: 'siete.m4a',
-      3: 'nueve.m4a',
-      4: 'chico_fuera.m4a',
+  void _sonidoApuesta(int nivel, {bool esIA = false}) {
+    const nombres = {
+      1: 'envido',
+      2: 'siete',
+      3: 'nueve',
+      4: 'chico_fuera',
     };
-    final archivo = archivos[nivel];
-    if (archivo != null) {
-      _reproducirSonido(archivo);
-    }
+    final nombre = nombres[nivel];
+    if (nombre == null) return;
+    final idVoz = esIA
+        ? AppSettings.instance.vozRival
+        : AppSettings.instance.vozPropia;
+    final voz = Voces.porId(idVoz);
+    _reproducirSonido(voz.rutaNivel(nombre));
   }
   
   String? turnoDeApuesta;
@@ -549,7 +553,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         envitePropuestoPorIA = true;
         mensaje = 'La IA propone ${apuesta.proximoNombre}';
       });
-      _sonidoApuesta(apuesta.nivelIndex + 1);
+      _sonidoApuesta(apuesta.nivelIndex + 1, esIA: true);
     }
   }
 

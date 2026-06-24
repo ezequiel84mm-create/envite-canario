@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/voces.dart';
 
 class OptionsScreen extends StatefulWidget {
   const OptionsScreen({super.key});
@@ -88,6 +89,22 @@ class _OptionsScreenState extends State<OptionsScreen> {
                       _PanelDificultad(
                         valorActual: settings.dificultadIA,
                         onCambio: (v) => setState(() => settings.setDificultad(v)),
+                      ),
+                      const SizedBox(height: 14),
+                      _PanelVoz(
+                        titulo: 'Mi voz',
+                        icono: Icons.record_voice_over,
+                        idActual: settings.vozPropia,
+                        onCambio: (id) =>
+                            setState(() => settings.setVozPropia(id)),
+                      ),
+                      const SizedBox(height: 14),
+                      _PanelVoz(
+                        titulo: 'Voz del rival',
+                        icono: Icons.group,
+                        idActual: settings.vozRival,
+                        onCambio: (id) =>
+                            setState(() => settings.setVozRival(id)),
                       ),
                       const SizedBox(height: 14),
                       _PanelBoton(
@@ -335,6 +352,94 @@ class _PanelBoton extends StatelessWidget {
             const Icon(Icons.chevron_right, color: Color(0xFFE3C28A), size: 22),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PanelVoz extends StatelessWidget {
+  final String titulo;
+  final IconData icono;
+  final String idActual;
+  final ValueChanged<String> onCambio;
+
+  const _PanelVoz({
+    required this.titulo,
+    required this.icono,
+    required this.idActual,
+    required this.onCambio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final voces = Voces.disponibles;
+    // Indice de la voz actual dentro de la lista.
+    var indice = voces.indexWhere((v) => v.id == idActual);
+    if (indice < 0) indice = 0;
+    final vozActual = voces[indice];
+
+    void cambiar(int paso) {
+      final n = voces.length;
+      final nuevo = (indice + paso + n) % n; // rota circular
+      onCambio(voces[nuevo].id);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xCC2A1A0A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x66E3C28A), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(icono, color: const Color(0xFFE3C28A), size: 22),
+          const SizedBox(width: 12),
+          Text(
+            titulo,
+            style: const TextStyle(color: Color(0xFFF5E6C8), fontSize: 16),
+          ),
+          const Spacer(),
+          // Selector con flechas: ‹ Nombre ›
+          _Flecha(icono: Icons.chevron_left, onTap: () => cambiar(-1)),
+          Container(
+            constraints: const BoxConstraints(minWidth: 84),
+            alignment: Alignment.center,
+            child: Text(
+              vozActual.nombre,
+              style: const TextStyle(
+                color: Color(0xFFEFAF1F),
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          _Flecha(icono: Icons.chevron_right, onTap: () => cambiar(1)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Flecha extends StatelessWidget {
+  final IconData icono;
+  final VoidCallback onTap;
+
+  const _Flecha({required this.icono, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: const Color(0x33FFFFFF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x55E3C28A)),
+        ),
+        child: Icon(icono, color: const Color(0xFFF5E6C8), size: 22),
       ),
     );
   }
