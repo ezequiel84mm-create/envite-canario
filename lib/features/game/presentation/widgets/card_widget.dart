@@ -4,19 +4,23 @@ import '../../data/models/card_model.dart';
 class CardWidget extends StatelessWidget {
   final CardModel card;
   final bool faceDown;
+  final double width;
+  final double height;
 
   const CardWidget({
     super.key,
     required this.card,
     this.faceDown = false,
+    this.width = 85,
+    this.height = 135,
   });
 
   @override
   Widget build(BuildContext context) {
     if (faceDown) {
       return Container(
-        width: 85,
-        height: 135,
+        width: width,
+        height: height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white24, width: 1.5),
@@ -30,8 +34,8 @@ class CardWidget extends StatelessWidget {
     }
 
     return Container(
-      width: 85,
-      height: 135,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.black26, width: 1.5),

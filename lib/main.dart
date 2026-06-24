@@ -790,8 +790,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 _PilaGanada(cantidad: pilaGanadaIA.length, label: 'IA ganó'),
                 const SizedBox(width: 50),
                 _AbanicoCartas(
-                  anchoCarta: 65,
-                  altoCarta: 90,
+                  anchoCarta: 78,
+                  altoCarta: 108,
                   solapamiento: 35,
                   cartas: ia.hand
                       .map((c) => CardWidget(card: c, faceDown: true))
@@ -808,7 +808,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 Column(
                   children: [
                     const SizedBox(height: 6),
-                    CardWidget(card: cartaVirada),
+                    CardWidget(card: cartaVirada, width: 102, height: 162),
                   ],
                 ),
                 const SizedBox(width: 24),
@@ -816,7 +816,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   children: [
                     const SizedBox(height: 6),
                     _cartaDe('ia') != null
-                        ? CardWidget(card: _cartaDe('ia')!)
+                        ? CardWidget(card: _cartaDe('ia')!, width: 102, height: 162)
                         : const SizedBox(width: 70, height: 100),
                   ],
                 ),
@@ -825,7 +825,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   children: [
                     const SizedBox(height: 6),
                     _cartaDe('tu') != null
-                        ? CardWidget(card: _cartaDe('tu')!)
+                        ? CardWidget(card: _cartaDe('tu')!, width: 102, height: 162)
                         : const SizedBox(width: 70, height: 100),
                   ],
                 ),
@@ -924,8 +924,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _AbanicoCartas(
-                  anchoCarta: 65,
-                  altoCarta: 90,
+                  anchoCarta: 78,
+                  altoCarta: 108,
                   solapamiento: 35,
                   cartas: tu.hand.map((c) {
                     final esValida = !envitePropuestoPorIA &&

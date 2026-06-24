@@ -773,8 +773,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                   PilaGanada(cantidad: manosRival, label: 'Rival'),
                   const SizedBox(width: 50),
                   AbanicoCartas(
-                    anchoCarta: 65,
-                    altoCarta: 90,
+                    anchoCarta: 78,
+                    altoCarta: 108,
                     solapamiento: 35,
                     cartas: List.generate(
                         numCartasRival,
@@ -801,21 +801,21 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                   Column(children: [
                     const SizedBox(height: 6),
                     _vira != null
-                        ? CardWidget(card: _vira!)
+                        ? CardWidget(card: _vira!, width: 102, height: 162)
                         : const SizedBox(width: 70, height: 100),
                   ]),
                   const SizedBox(width: 20),
                   Column(children: [
                     const SizedBox(height: 6),
                     _cartaRival != null
-                        ? CardWidget(card: _cartaRival!)
+                        ? CardWidget(card: _cartaRival!, width: 102, height: 162)
                         : const SizedBox(width: 70, height: 100),
                   ]),
                   const SizedBox(width: 20),
                   Column(children: [
                     const SizedBox(height: 6),
                     _cartaMia != null
-                        ? CardWidget(card: _cartaMia!)
+                        ? CardWidget(card: _cartaMia!, width: 102, height: 162)
                         : const SizedBox(width: 70, height: 100),
                   ]),
                 ],
@@ -842,8 +842,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   AbanicoCartas(
-                    anchoCarta: 65,
-                    altoCarta: 90,
+                    anchoCarta: 78,
+                    altoCarta: 108,
                     solapamiento: 35,
                     cartas: _miMano.map((c) {
                       return GestureDetector(
