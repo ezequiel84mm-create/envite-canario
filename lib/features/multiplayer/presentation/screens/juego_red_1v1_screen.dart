@@ -222,9 +222,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         if (carta != null) _anfitrionRecibeJugada(carta);
       } else if (msg.tipo == TipoMensaje.proponerEnvite) {
         // El invitado (asiento 1) canta un envite.
+        _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
         _anfitrionRegistraCanto(1);
       } else if (msg.tipo == TipoMensaje.respuestaEnvite) {
         // El invitado responde a un envite.
+        _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
         _anfitrionResuelveRespuesta(msg.datos['accion']);
       } else if (msg.tipo == TipoMensaje.hola) {
         _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
@@ -420,7 +422,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     } else {
       // El invitado pide al anfitrion proponer envite.
       widget.conexion.enviar(
-        MensajeRed(TipoMensaje.proponerEnvite, {}).codificar(),
+        MensajeRed(TipoMensaje.proponerEnvite,
+            {'voz': AppSettings.instance.vozPropia}).codificar(),
       );
     }
   }
@@ -448,7 +451,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _anfitrionResuelveRespuesta(accion);
     } else {
       widget.conexion.enviar(
-        MensajeRed(TipoMensaje.respuestaEnvite, {'accion': accion}).codificar(),
+        MensajeRed(TipoMensaje.respuestaEnvite,
+            {'accion': accion, 'voz': AppSettings.instance.vozPropia})
+            .codificar(),
       );
     }
   }
