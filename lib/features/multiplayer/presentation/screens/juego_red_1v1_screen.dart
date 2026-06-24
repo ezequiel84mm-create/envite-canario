@@ -100,6 +100,12 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
   }
 
+  // Reproduce un efecto de sonido simple (reparto, recoger baraja).
+  void _reproducirEfecto(String archivo) {
+    if (!AppSettings.instance.efectosActivados) return;
+    _sfxPlayer.play(AssetSource('audio/$archivo'));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -128,6 +134,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // ===== ANFITRIÓN: reparte y manda el estado =====
   void _repartirComoAnfitrion() {
+    _reproducirEfecto('sonido_reparto.mp3');
     final mazo = DeckGenerator.generateShuffledDeck();
     _manoAnfitrion = mazo.sublist(0, 3);
     _manoInvitado = mazo.sublist(3, 6);
@@ -247,7 +254,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   void _invitadoRecibeEstado(Map<String, dynamic> d) {
     final huboEnviteAntes = _enviteCantado;
     final nivelPropAntes = _nivelPropuesto;
-        final anteriorDialogo = _pendienteDialogo;
+    final anteriorDialogo = _pendienteDialogo;
+    final manosAntes = _manosAnfitrion + _manosInvitado;
+    final teniaCartas = _miMano.isNotEmpty;
     setState(() {
       _vira = d['vira'] != null ? TraductorCartas.desdeTexto(d['vira']) : null;
       _paloVirado = _vira?.suit;
@@ -287,6 +296,15 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mostrarDialogoFinRed();
       });
+    }
+    // Reparto nuevo: mano llena, sin cartas en mesa, contador de bazas a 0.
+    final esRepartoNuevo = _miMano.length == 3 &&
+        _cartaMia == null &&
+        _cartaRival == null &&
+        (_manosAnfitrion + _manosInvitado) == 0 &&
+        (manosAntes > 0 || !teniaCartas);
+    if (esRepartoNuevo) {
+      _reproducirEfecto('sonido_reparto.mp3');
     }
     // Si apareció un envite nuevo (o subió de nivel), suena el canto.
     final hayEnviteNuevo = _enviteCantado &&
@@ -383,6 +401,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _cartaMia = null;
     _cartaRival = null;
     _abreBaza = -1; // baza cerrada, la siguiente la abre quien gano
+    _reproducirEfecto('sonido_recoger_baraja.mp3');
 
     // ¿Termina la ronda? Al ganar 2 bazas o agotarse las cartas.
     final cartasAgotadas = _manoAnfitrion.isEmpty && _manoInvitado.isEmpty;
