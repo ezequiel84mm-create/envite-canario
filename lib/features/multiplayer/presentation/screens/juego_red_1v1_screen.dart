@@ -8,6 +8,8 @@ import '../../../../core/utils/deck_generator.dart';
 import '../../../game/domain/engine/trick_engine.dart';
 import '../../network/conexion_p2p.dart';
 import '../../network/mensajes_red.dart';
+import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/voces.dart';
 import '../../network/traductor_cartas.dart';
 import '../widgets/widgets_mesa.dart';
 
@@ -73,28 +75,39 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _numCartasRivalRecibidas = 3;
 
   int get _miAsiento => widget.soyAnfitrion ? 0 : 1;
+  // Voz elegida por cada asiento (0=anfitrion, 1=invitado).
+  String _vozAsiento0 = AppSettings.instance.vozPropia;
+  String _vozAsiento1 = AppSettings.instance.vozPropia;
 
   // Reproductor de efectos (voz de los envites).
   final AudioPlayer _sfxPlayer = AudioPlayer();
 
   // Reproduce el canto de voz segun el nivel de apuesta.
   // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
-  void _sonidoApuesta(int nivel) {
-    const archivos = {
-      1: 'envido.m4a',
-      2: 'siete.m4a',
-      3: 'nueve.m4a',
-      4: 'chico_fuera.m4a',
+  void _sonidoApuesta(int nivel, {required int asientoCanta}) {
+    if (!AppSettings.instance.efectosActivados) return;
+    const nombres = {
+      1: 'envido',
+      2: 'siete',
+      3: 'nueve',
+      4: 'chico_fuera',
     };
-    final archivo = archivos[nivel];
-    if (archivo != null) {
-      _sfxPlayer.play(AssetSource('audio/$archivo'));
-    }
+    final nombre = nombres[nivel];
+    if (nombre == null) return;
+    // Usa la voz del asiento que canta (0=anfitrion, 1=invitado).
+    final idVoz = asientoCanta == 0 ? _vozAsiento0 : _vozAsiento1;
+    final voz = Voces.porId(idVoz);
+    _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
   }
 
   @override
   void initState() {
     super.initState();
+    if (widget.soyAnfitrion) {
+      _vozAsiento0 = AppSettings.instance.vozPropia;
+    } else {
+      _vozAsiento1 = AppSettings.instance.vozPropia;
+    }
     MusicController.instance.pausar();
     // Escuchar mensajes del otro jugador.
     widget.conexion.alRecibir = _alRecibirMensaje;
@@ -108,7 +121,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     } else {
       _mensaje = 'Esperando al anfitrión...';
       // Pide el estado actual por si el anfitrion ya repartio.
-      widget.conexion.enviar(MensajeRed(TipoMensaje.hola, {}).codificar());
+      widget.conexion.enviar(MensajeRed(TipoMensaje.hola,
+          {'voz': AppSettings.instance.vozPropia}).codificar());
     }
   }
 
@@ -187,6 +201,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'turnoApuesta': _turnoApuesta,
       'manoEsDeTumbo': _manoEsDeTumbo,
       'quienDecideTumbo': _quienDecideTumbo,
+      'vozAsiento0': _vozAsiento0,
+      'vozAsiento1': _vozAsiento1,
       'pendienteDialogo': _pendienteDialogo,
       'piedrasSumadasDialogo': _piedrasSumadasDialogo,
       'ganadorDialogoAsiento': _ganadorDialogoAsiento,
@@ -211,6 +227,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         // El invitado responde a un envite.
         _anfitrionResuelveRespuesta(msg.datos['accion']);
       } else if (msg.tipo == TipoMensaje.hola) {
+        _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
         // El invitado pide el estado actual: se lo reenviamos.
         _enviarEstado();
       } else if (msg.tipo == TipoMensaje.decisionTumbo) {
@@ -258,6 +275,8 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _turnoApuesta = d['turnoApuesta'] ?? -1;
       _manoEsDeTumbo = d['manoEsDeTumbo'] ?? false;
       _quienDecideTumbo = d['quienDecideTumbo'] ?? -1;
+      _vozAsiento0 = d['vozAsiento0'] ?? _vozAsiento0;
+      _vozAsiento1 = d['vozAsiento1'] ?? _vozAsiento1;
       _pendienteDialogo = d['pendienteDialogo'] ?? 'ninguno';
       _piedrasSumadasDialogo = d['piedrasSumadasDialogo'] ?? 0;
       _ganadorDialogoAsiento = d['ganadorDialogoAsiento'] ?? -1;
@@ -271,7 +290,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     final hayEnviteNuevo = _enviteCantado &&
         (!huboEnviteAntes || _nivelPropuesto != nivelPropAntes);
     if (hayEnviteNuevo) {
-      _sonidoApuesta(_nivelPropuesto);
+      _sonidoApuesta(_nivelPropuesto, asientoCanta: _quienCanto);
     }
   }
 
@@ -413,7 +432,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _enviteCantado = true;
     _quienCanto = asiento;
     _nivelPropuesto = _nivelApuesta + 1;
-    _sonidoApuesta(_nivelPropuesto);
+    _sonidoApuesta(_nivelPropuesto, asientoCanta: asiento);
     _mensaje = asiento == 0
         ? 'Cantaste. Esperando al rival...'
         : 'El rival canta. ¡Responde!';
@@ -471,7 +490,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     } else if (accion == 'subir') {
       // Subir: reenvida al siguiente nivel; ahora responde el otro.
       _nivelPropuesto = _nivelPropuesto + 1;
-      _sonidoApuesta(_nivelPropuesto);
+      _sonidoApuesta(_nivelPropuesto, asientoCanta: _quienCanto);
       _quienCanto = _quienCanto == 0 ? 1 : 0; // cambia quien espera respuesta
       _mensaje = 'Envite subido. ¡Responde!';
     }
