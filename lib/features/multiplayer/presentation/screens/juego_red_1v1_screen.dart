@@ -38,6 +38,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   CardModel? _cartaRival;
 
   int _turno = 0; // 0 = anfitrión, 1 = invitado
+  int _abreBaza = -1; // asiento de quien echo la primera carta de la baza
   int _manosAnfitrion = 0;
   int _manosInvitado = 0;
   String _mensaje = '';
@@ -299,6 +300,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // Lógica central del anfitrión cuando alguien juega.
   void _anfitrionJuegaCarta(int asiento, CardModel carta) {
+    if (_cartaMia == null && _cartaRival == null) {
+      _abreBaza = asiento; // primera carta de la baza
+    }
     if (asiento == 0) {
       _manoAnfitrion.remove(carta);
       _cartaMia = carta;
@@ -320,10 +324,14 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   }
 
   void _resolverBaza() {
-    final jugadas = [
-      PlayedCard(playerId: 'anfitrion', card: _cartaMia!),
-      PlayedCard(playerId: 'invitado', card: _cartaRival!),
-    ];
+    final jugadaAnfitrion =
+        PlayedCard(playerId: 'anfitrion', card: _cartaMia!);
+    final jugadaInvitado =
+        PlayedCard(playerId: 'invitado', card: _cartaRival!);
+    // El que abrio la baza va primero (define el palo inicial).
+    final jugadas = _abreBaza == 1
+        ? [jugadaInvitado, jugadaAnfitrion]
+        : [jugadaAnfitrion, jugadaInvitado];
     final ganador = TrickEngine.determinarGanador(
       jugadas: jugadas,
       paloDeLaMano: _paloVirado!,
@@ -341,6 +349,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
     _cartaMia = null;
     _cartaRival = null;
+    _abreBaza = -1; // baza cerrada, la siguiente la abre quien gano
 
     // ¿Termina la ronda? Al ganar 2 bazas o agotarse las cartas.
     final cartasAgotadas = _manoAnfitrion.isEmpty && _manoInvitado.isEmpty;
@@ -802,21 +811,21 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                     const SizedBox(height: 6),
                     _vira != null
                         ? CardWidget(card: _vira!, width: 102, height: 162)
-                        : const SizedBox(width: 70, height: 100),
+                        : const SizedBox(width: 102, height: 162),
                   ]),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 10),
                   Column(children: [
                     const SizedBox(height: 6),
                     _cartaRival != null
                         ? CardWidget(card: _cartaRival!, width: 102, height: 162)
-                        : const SizedBox(width: 70, height: 100),
+                        : const SizedBox(width: 102, height: 162),
                   ]),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 10),
                   Column(children: [
                     const SizedBox(height: 6),
                     _cartaMia != null
                         ? CardWidget(card: _cartaMia!, width: 102, height: 162)
-                        : const SizedBox(width: 70, height: 100),
+                        : const SizedBox(width: 102, height: 162),
                   ]),
                 ],
               ),

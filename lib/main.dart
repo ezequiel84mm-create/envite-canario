@@ -811,22 +811,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     CardWidget(card: cartaVirada, width: 102, height: 162),
                   ],
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 10),
                 Column(
                   children: [
                     const SizedBox(height: 6),
                     _cartaDe('ia') != null
                         ? CardWidget(card: _cartaDe('ia')!, width: 102, height: 162)
-                        : const SizedBox(width: 70, height: 100),
+                        : const SizedBox(width: 102, height: 162),
                   ],
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 10),
                 Column(
                   children: [
                     const SizedBox(height: 6),
                     _cartaDe('tu') != null
                         ? CardWidget(card: _cartaDe('tu')!, width: 102, height: 162)
-                        : const SizedBox(width: 70, height: 100),
+                        : const SizedBox(width: 102, height: 162),
                   ],
                 ),
               ],
