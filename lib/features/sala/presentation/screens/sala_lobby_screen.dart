@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'sala_screen.dart';
-import '../../../multiplayer/presentation/screens/unirse_partida_screen.dart';
+import 'unirse_sala_screen.dart';
 
 /// Lobby del modo multijugador (sala): elegir Crear o Unirse.
 /// Mismo estilo que el lobby del 1vs1.
@@ -59,7 +59,7 @@ class SalaLobbyScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const SalaScreen()),
+                                builder: (_) => const SalaScreen(soyAnfitrion: true)),
                           );
                         },
                       ),
@@ -73,7 +73,7 @@ class SalaLobbyScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const UnirsePartidaScreen()),
+                                builder: (_) => const UnirseSalaScreen()),
                           );
                         },
                       ),
