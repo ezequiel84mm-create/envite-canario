@@ -391,39 +391,60 @@ class _SalaScreenState extends State<SalaScreen> {
                 ),
               ),
             ),
-          GestureDetector(
-            onTap: puede
-                ? () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const GameMultiScreen()),
-                    );
-                  }
-                : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
-              decoration: BoxDecoration(
-                gradient: puede
-                    ? const LinearGradient(
-                        colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
-                      )
-                    : null,
-                color: puede ? null : const Color(0x55000000),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+          if (widget.soyAnfitrion)
+            GestureDetector(
+              onTap: puede
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const GameMultiScreen()),
+                      );
+                    }
+                  : null,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
+                decoration: BoxDecoration(
+                  gradient: puede
+                      ? const LinearGradient(
+                          colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                        )
+                      : null,
+                  color: puede ? null : const Color(0x55000000),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                ),
+                child: Text(
+                  puede ? 'EMPEZAR' : 'Faltan jugadores',
+                  style: TextStyle(
+                    color: puede
+                        ? const Color(0xFF3A2B12)
+                        : const Color(0x88F5E6C8),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-              child: Text(
-                puede ? 'EMPEZAR' : 'Faltan jugadores',
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+              decoration: BoxDecoration(
+                color: const Color(0x55000000),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x55E3C28A), width: 1),
+              ),
+              child: const Text(
+                'Esperando al anfitrión...',
                 style: TextStyle(
-                  color:
-                      puede ? const Color(0xFF3A2B12) : const Color(0x88F5E6C8),
-                  fontSize: 16,
+                  color: Color(0xCCF5E6C8),
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
