@@ -14,7 +14,9 @@ import 'features/game/domain/engine/trick_engine.dart';
 import 'features/game/domain/ai/ai_player.dart';
 import 'features/game/presentation/widgets/card_widget.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppSettings.instance.cargar();
   runApp(const EnviteApp());
 }
 

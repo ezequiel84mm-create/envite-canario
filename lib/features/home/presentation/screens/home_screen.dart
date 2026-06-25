@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../sala/presentation/screens/sala_lobby_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
 import '../../../options/presentation/screens/options_screen.dart';
-import '../../../multiplayer/presentation/screens/game_2v2_screen.dart';
 import '../../../multiplayer/presentation/screens/online_1v1_lobby_screen.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/music_controller.dart';
@@ -184,10 +184,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const Game2v2Screen()),
+                        MaterialPageRoute(builder: (_) => const SalaLobbyScreen()),
                       );
                     },
                   ),
+
                   const SizedBox(height: 14),
                   _ImageButton(
                     asset: 'assets/ui/boton_como_jugar.jpg',

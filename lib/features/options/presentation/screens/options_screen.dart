@@ -72,6 +72,11 @@ class _OptionsScreenState extends State<OptionsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
                     children: [
+                      _PanelAlias(
+                        valor: settings.alias,
+                        onCambio: (v) => setState(() => settings.setAlias(v)),
+                      ),
+                      const SizedBox(height: 14),
                       _PanelToggle(
                         icono: Icons.music_note,
                         titulo: 'Música',
@@ -440,6 +445,89 @@ class _Flecha extends StatelessWidget {
           border: Border.all(color: const Color(0x55E3C28A)),
         ),
         child: Icon(icono, color: const Color(0xFFF5E6C8), size: 22),
+      ),
+    );
+  }
+}
+
+class _PanelAlias extends StatefulWidget {
+  final String valor;
+  final ValueChanged<String> onCambio;
+
+  const _PanelAlias({required this.valor, required this.onCambio});
+
+  @override
+  State<_PanelAlias> createState() => _PanelAliasState();
+}
+
+class _PanelAliasState extends State<_PanelAlias> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.valor);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xCC2A1A0A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x66E3C28A), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.badge, color: Color(0xFFE3C28A), size: 22),
+              SizedBox(width: 12),
+              Text(
+                'Tu nombre',
+                style: TextStyle(color: Color(0xFFF5E6C8), fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _ctrl,
+            maxLength: 16,
+            style: const TextStyle(
+              color: Color(0xFFEFAF1F),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            cursorColor: const Color(0xFFEFAF1F),
+            decoration: InputDecoration(
+              counterText: '',
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              filled: true,
+              fillColor: const Color(0x33FFFFFF),
+              hintText: 'Escribe tu nombre',
+              hintStyle: const TextStyle(color: Color(0x66F5E6C8)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0x33E3C28A)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF8A6A35)),
+              ),
+            ),
+            onChanged: widget.onCambio,
+          ),
+        ],
       ),
     );
   }

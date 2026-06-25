@@ -10,14 +10,14 @@ import '../../../../core/settings/music_controller.dart';
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
 /// Equipo A (tú): 0 y 2. Equipo B (rivales): 1 y 3.
-class Game2v2Screen extends StatefulWidget {
-  const Game2v2Screen({super.key});
+class GameMultiScreen extends StatefulWidget {
+  const GameMultiScreen({super.key});
 
   @override
-  State<Game2v2Screen> createState() => _Game2v2ScreenState();
+  State<GameMultiScreen> createState() => _GameMultiScreenState();
 }
 
-class _Game2v2ScreenState extends State<Game2v2Screen> {
+class _GameMultiScreenState extends State<GameMultiScreen> {
   late List<List<CardModel>> _manos;
   late Suit _paloVirado;
   late CardModel _vira;
