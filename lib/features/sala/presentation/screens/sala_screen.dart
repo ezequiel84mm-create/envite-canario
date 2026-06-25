@@ -119,6 +119,27 @@ class _SalaScreenState extends State<SalaScreen> {
     };
   }
 
+  // El anfitrión pone una IA en un asiento vacío.
+  void _ponerIA(int numero) {
+    if (!widget.soyAnfitrion) return;
+    final asiento = _sala.asientos[numero];
+    if (!asiento.estaVacio) return;
+    // id único para la IA basado en el número de asiento.
+    asiento.ocupante = JugadorSala.ia(numero + 1);
+    setState(() {});
+    _repartirEstadoSala();
+  }
+
+  // El anfitrión quita una IA de un asiento.
+  void _quitarIA(int numero) {
+    if (!widget.soyAnfitrion) return;
+    final asiento = _sala.asientos[numero];
+    if (asiento.estaVacio || !asiento.esIA) return;
+    asiento.ocupante = null;
+    setState(() {});
+    _repartirEstadoSala();
+  }
+
   // Navega a la pantalla de juego.
   void _irAlJuego() {
     if (!mounted) return;
@@ -139,7 +160,12 @@ class _SalaScreenState extends State<SalaScreen> {
   // El jugador local pide moverse a un asiento (si está libre).
   void _pedirAsiento(int numero) {
     final destino = _sala.asientos[numero];
-    if (!destino.estaVacio) return; // ocupado, no se puede
+    // El anfitrión, si toca una IA, la quita.
+    if (widget.soyAnfitrion && !destino.estaVacio && destino.esIA) {
+      _quitarIA(numero);
+      return;
+    }
+    if (!destino.estaVacio) return; // ocupado por humano, no se puede
     if (widget.soyAnfitrion) {
       // El anfitrión se mueve directo.
       _moverInvitado('anfitrion', numero);
@@ -299,6 +325,7 @@ class _SalaScreenState extends State<SalaScreen> {
   }
 
   Widget _fichaAsiento(Asiento asiento) {
+    final numero = asiento.numero;
     final vacio = asiento.estaVacio;
     final esEquipoA = asiento.equipo == 0;
     final colorEquipo =
@@ -317,8 +344,25 @@ class _SalaScreenState extends State<SalaScreen> {
       ),
       child: Center(
         child: vacio
-            ? const Icon(Icons.event_seat,
-                color: Color(0x88E3C28A), size: 26)
+            ? (widget.soyAnfitrion
+                ? GestureDetector(
+                    onTap: () => _ponerIA(numero),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.smart_toy,
+                            color: Color(0x88E3C28A), size: 20),
+                        SizedBox(height: 2),
+                        Text('+ IA',
+                            style: TextStyle(
+                                color: Color(0xFFE3C28A),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
+                : const Icon(Icons.event_seat,
+                    color: Color(0x88E3C28A), size: 26))
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
