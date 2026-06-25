@@ -4,6 +4,8 @@ import '../../domain/models/estado_sala.dart';
 import '../../domain/models/asiento.dart';
 import '../../domain/models/jugador_sala.dart';
 import '../../network/conexion_sala.dart';
+import '../../network/mensajes_sala.dart';
+import '../../../multiplayer/network/mensajes_red.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../multiplayer/presentation/screens/game_multi_screen.dart';
 
@@ -11,7 +13,8 @@ import '../../../multiplayer/presentation/screens/game_multi_screen.dart';
 /// El anfitrión abre la red y muestra el QR; los invitados se conectan.
 class SalaScreen extends StatefulWidget {
   final bool soyAnfitrion;
-  const SalaScreen({super.key, this.soyAnfitrion = true});
+  final String? ipAnfitrion; // solo para invitado: IP a la que conectarse
+  const SalaScreen({super.key, this.soyAnfitrion = true, this.ipAnfitrion});
 
   @override
   State<SalaScreen> createState() => _SalaScreenState();
@@ -28,7 +31,109 @@ class _SalaScreenState extends State<SalaScreen> {
     super.initState();
     _sala = EstadoSala.vacia('anfitrion');
     if (widget.soyAnfitrion) {
+      _configurarCallbacksAnfitrion();
       _iniciarComoAnfitrion();
+    } else {
+      _configurarCallbacksInvitado();
+      _iniciarComoInvitado();
+    }
+  }
+
+  // ===== ANFITRIÓN: callbacks de red =====
+  void _configurarCallbacksAnfitrion() {
+    _conexion.alConectarInvitado = (idInvitado) {};
+    _conexion.alRecibirDeInvitado = (idInvitado, texto) {
+      final msg = MensajeRed.decodificar(texto);
+      if (msg == null) return;
+      if (msg.tipo == TipoMensajeSala.hola) {
+        final alias = msg.datos['alias'] ?? 'Jugador';
+        _sentarInvitado(idInvitado, alias);
+      } else if (msg.tipo == TipoMensajeSala.elegirAsiento) {
+        final numero = msg.datos['asiento'] ?? -1;
+        _moverInvitado(idInvitado, numero);
+      }
+    };
+    _conexion.alDesconectarInvitado = (idInvitado) {
+      _quitarJugador(idInvitado);
+    };
+  }
+
+  void _sentarInvitado(String idInvitado, String alias) {
+    if (_sala.asientoDe(idInvitado) != null) return;
+    final libre = _sala.asientos.firstWhere(
+      (a) => a.estaVacio,
+      orElse: () => _sala.asientos.first,
+    );
+    if (!libre.estaVacio) return;
+    libre.ocupante = JugadorSala(id: idInvitado, apodo: alias);
+    setState(() => _estado = 'Esperando jugadores...');
+    _repartirEstadoSala();
+  }
+
+  void _moverInvitado(String idInvitado, int numero) {
+    if (numero < 0 || numero >= EstadoSala.totalAsientos) return;
+    final destino = _sala.asientos[numero];
+    if (!destino.estaVacio) return;
+    final actual = _sala.asientoDe(idInvitado);
+    if (actual == null) return;
+    destino.ocupante = actual.ocupante;
+    actual.ocupante = null;
+    setState(() {});
+    _repartirEstadoSala();
+  }
+
+  void _quitarJugador(String idInvitado) {
+    final a = _sala.asientoDe(idInvitado);
+    if (a != null) {
+      a.ocupante = null;
+      setState(() {});
+      _repartirEstadoSala();
+    }
+  }
+
+  void _repartirEstadoSala() {
+    final msg = MensajeRed(
+      TipoMensajeSala.estadoSala,
+      _sala.aMapa(),
+    ).codificar();
+    _conexion.enviarATodos(msg);
+  }
+
+  // ===== INVITADO: callbacks de red =====
+  void _configurarCallbacksInvitado() {
+    _conexion.alRecibirDeAnfitrion = (texto) {
+      final msg = MensajeRed.decodificar(texto);
+      if (msg == null) return;
+      if (msg.tipo == TipoMensajeSala.estadoSala) {
+        setState(() {
+          _sala = EstadoSala.desdeMapa(msg.datos);
+          _estado = 'En la sala. Esperando al anfitrión...';
+        });
+      }
+    };
+    _conexion.alPerderAnfitrion = () {
+      if (!mounted) return;
+      setState(() => _estado = 'Se perdió la conexión con el anfitrión.');
+    };
+  }
+
+  Future<void> _iniciarComoInvitado() async {
+    setState(() => _estado = 'Conectando...');
+    final ip = widget.ipAnfitrion;
+    if (ip == null) {
+      setState(() => _estado = 'No hay dirección del anfitrión.');
+      return;
+    }
+    final ok = await _conexion.unirseASala(ip);
+    if (!mounted) return;
+    if (ok) {
+      _conexion.enviarAlAnfitrion(MensajeRed(
+        TipoMensajeSala.hola,
+        {'alias': AppSettings.instance.alias},
+      ).codificar());
+      setState(() => _estado = 'Conectado. Esperando sala...');
+    } else {
+      setState(() => _estado = 'No se pudo conectar a la sala.');
     }
   }
 
