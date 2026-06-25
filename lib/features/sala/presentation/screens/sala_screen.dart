@@ -109,12 +109,31 @@ class _SalaScreenState extends State<SalaScreen> {
           _sala = EstadoSala.desdeMapa(msg.datos);
           _estado = 'En la sala. Esperando al anfitrión...';
         });
+      } else if (msg.tipo == TipoMensajeSala.empezar) {
+        _irAlJuego();
       }
     };
     _conexion.alPerderAnfitrion = () {
       if (!mounted) return;
       setState(() => _estado = 'Se perdió la conexión con el anfitrión.');
     };
+  }
+
+  // Navega a la pantalla de juego.
+  void _irAlJuego() {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const GameMultiScreen()),
+    );
+  }
+
+  // El anfitrión pulsa EMPEZAR: avisa a todos y va al juego.
+  void _empezarPartida() {
+    _conexion.enviarATodos(
+      MensajeRed(TipoMensajeSala.empezar, {}).codificar(),
+    );
+    _irAlJuego();
   }
 
   // El jugador local pide moverse a un asiento (si está libre).
@@ -415,15 +434,7 @@ class _SalaScreenState extends State<SalaScreen> {
             ),
           if (widget.soyAnfitrion)
             GestureDetector(
-              onTap: puede
-                  ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const GameMultiScreen()),
-                      );
-                    }
-                  : null,
+              onTap: puede ? _empezarPartida : null,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
