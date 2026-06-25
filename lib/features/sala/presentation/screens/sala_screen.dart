@@ -117,6 +117,22 @@ class _SalaScreenState extends State<SalaScreen> {
     };
   }
 
+  // El jugador local pide moverse a un asiento (si está libre).
+  void _pedirAsiento(int numero) {
+    final destino = _sala.asientos[numero];
+    if (!destino.estaVacio) return; // ocupado, no se puede
+    if (widget.soyAnfitrion) {
+      // El anfitrión se mueve directo.
+      _moverInvitado('anfitrion', numero);
+    } else {
+      // El invitado manda la petición al anfitrión.
+      _conexion.enviarAlAnfitrion(MensajeRed(
+        TipoMensajeSala.elegirAsiento,
+        {'asiento': numero},
+      ).codificar());
+    }
+  }
+
   Future<void> _iniciarComoInvitado() async {
     setState(() => _estado = 'Conectando...');
     final ip = widget.ipAnfitrion;
@@ -243,13 +259,19 @@ class _SalaScreenState extends State<SalaScreen> {
               Positioned(
                 left: w * 0.04,
                 top: h * (0.10 + i * 0.21),
-                child: _fichaAsiento(_sala.asientos[asientosIzq[i]]),
+                child: GestureDetector(
+                  onTap: () => _pedirAsiento(asientosIzq[i]),
+                  child: _fichaAsiento(_sala.asientos[asientosIzq[i]]),
+                ),
               ),
             for (int i = 0; i < 4; i++)
               Positioned(
                 right: w * 0.04,
                 top: h * (0.10 + i * 0.21),
-                child: _fichaAsiento(_sala.asientos[asientosDer[i]]),
+                child: GestureDetector(
+                  onTap: () => _pedirAsiento(asientosDer[i]),
+                  child: _fichaAsiento(_sala.asientos[asientosDer[i]]),
+                ),
               ),
           ],
         );
