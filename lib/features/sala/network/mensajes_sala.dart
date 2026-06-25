@@ -13,4 +13,7 @@ class TipoMensajeSala {
 
   // ANFITRIÓN -> TODOS: "la partida empieza".
   static const String empezar = 'SALA_EMPEZAR';
+
+  // ANFITRIÓN -> UN invitado: "tu id en la sala es X".
+  static const String tuId = 'SALA_TU_ID';
 }

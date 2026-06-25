@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../sala/domain/models/config_partida.dart';
 import '../../../../core/enums/suit.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
@@ -11,7 +12,8 @@ import '../../../../core/settings/music_controller.dart';
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
 /// Equipo A (tú): 0 y 2. Equipo B (rivales): 1 y 3.
 class GameMultiScreen extends StatefulWidget {
-  const GameMultiScreen({super.key});
+  final ConfigPartida? config; // null = modo local de prueba (2v2 con IA)
+  const GameMultiScreen({super.key, this.config});
 
   @override
   State<GameMultiScreen> createState() => _GameMultiScreenState();

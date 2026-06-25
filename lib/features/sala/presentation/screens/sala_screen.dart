@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../domain/models/estado_sala.dart';
+import '../../domain/models/config_partida.dart';
 import '../../domain/models/asiento.dart';
 import '../../domain/models/jugador_sala.dart';
 import '../../network/conexion_sala.dart';
@@ -24,6 +25,7 @@ class _SalaScreenState extends State<SalaScreen> {
   late EstadoSala _sala;
   final ConexionSala _conexion = ConexionSala();
   String? _ip; // IP del anfitrión (para el QR)
+  String _miIdInvitado = ''; // solo invitado: su id asignado por el anfitrión
   String _estado = '';
 
   @override
@@ -66,6 +68,11 @@ class _SalaScreenState extends State<SalaScreen> {
     );
     if (!libre.estaVacio) return;
     libre.ocupante = JugadorSala(id: idInvitado, apodo: alias);
+    // Le decimos al invitado cuál es su id (para que sepa quién es).
+    _conexion.enviarA(idInvitado, MensajeRed(
+      TipoMensajeSala.tuId,
+      {'id': idInvitado},
+    ).codificar());
     setState(() => _estado = 'Esperando jugadores...');
     _repartirEstadoSala();
   }
@@ -109,6 +116,8 @@ class _SalaScreenState extends State<SalaScreen> {
           _sala = EstadoSala.desdeMapa(msg.datos);
           _estado = 'En la sala. Esperando al anfitrión...';
         });
+      } else if (msg.tipo == TipoMensajeSala.tuId) {
+        _miIdInvitado = msg.datos['id'] ?? '';
       } else if (msg.tipo == TipoMensajeSala.empezar) {
         _irAlJuego();
       }
@@ -143,9 +152,11 @@ class _SalaScreenState extends State<SalaScreen> {
   // Navega a la pantalla de juego.
   void _irAlJuego() {
     if (!mounted) return;
+    final idLocal = widget.soyAnfitrion ? 'anfitrion' : _miIdInvitado;
+    final config = ConfigPartida.desdeSala(_sala, idLocal);
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const GameMultiScreen()),
+      MaterialPageRoute(builder: (_) => GameMultiScreen(config: config)),
     );
   }
 
