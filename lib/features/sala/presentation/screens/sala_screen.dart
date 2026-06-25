@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../domain/models/estado_sala.dart';
-import '../../domain/models/jugador_sala.dart';
-import '../../../multiplayer/presentation/screens/game_multi_screen.dart';
 import '../../domain/models/asiento.dart';
+import '../../domain/models/jugador_sala.dart';
+import '../../network/conexion_sala.dart';
+import '../../../../core/settings/app_settings.dart';
+import '../../../multiplayer/presentation/screens/game_multi_screen.dart';
 
-/// MAQUETA de la pantalla de sala (lobby) del modo multijugador.
-/// De momento usa datos de prueba (sin red) para afinar el diseño visual.
+/// Pantalla de SALA (lobby) del modo multijugador.
+/// El anfitrión abre la red y muestra el QR; los invitados se conectan.
 class SalaScreen extends StatefulWidget {
-  const SalaScreen({super.key});
+  final bool soyAnfitrion;
+  const SalaScreen({super.key, this.soyAnfitrion = true});
 
   @override
   State<SalaScreen> createState() => _SalaScreenState();
@@ -15,16 +19,43 @@ class SalaScreen extends StatefulWidget {
 
 class _SalaScreenState extends State<SalaScreen> {
   late EstadoSala _sala;
+  final ConexionSala _conexion = ConexionSala();
+  String? _ip; // IP del anfitrión (para el QR)
+  String _estado = '';
 
   @override
   void initState() {
     super.initState();
     _sala = EstadoSala.vacia('anfitrion');
-    _sala.asientos[0].ocupante =
-        const JugadorSala(id: 'anfitrion', apodo: 'Zeky');
-    _sala.asientos[1].ocupante =
-        const JugadorSala(id: 'p2', apodo: 'Manolo');
-    _sala.asientos[2].ocupante = JugadorSala.ia(1);
+    if (widget.soyAnfitrion) {
+      _iniciarComoAnfitrion();
+    }
+  }
+
+  Future<void> _iniciarComoAnfitrion() async {
+    // El anfitrión se sienta en el asiento 0 con su alias.
+    _sala.asientos[0].ocupante = JugadorSala(
+      id: 'anfitrion',
+      apodo: AppSettings.instance.alias,
+    );
+    setState(() => _estado = 'Abriendo sala...');
+
+    final ip = await _conexion.crearSala();
+    if (!mounted) return;
+    setState(() {
+      if (ip != null) {
+        _ip = ip;
+        _estado = 'Esperando jugadores...';
+      } else {
+        _estado = 'No se pudo abrir la sala.\n¿Estás en una red wifi?';
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _conexion.cerrar();
+    super.dispose();
   }
 
   @override
@@ -180,10 +211,25 @@ class _SalaScreenState extends State<SalaScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 110,
-            height: 110,
+            width: 130,
+            height: 130,
             color: Colors.white,
-            child: const Icon(Icons.qr_code_2, size: 100, color: Colors.black),
+            child: _ip != null
+                ? QrImageView(
+                    data: _ip!,
+                    size: 130,
+                    backgroundColor: Colors.white,
+                  )
+                : const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text(
+                        'Abriendo\nsala...',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -194,23 +240,24 @@ class _SalaScreenState extends State<SalaScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A1A0A),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'Código: 4827',
-              style: TextStyle(
-                color: Color(0xFFEFAF1F),
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+          if (_ip != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A1A0A),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _ip!,
+                style: const TextStyle(
+                  color: Color(0xFFEFAF1F),
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -220,37 +267,59 @@ class _SalaScreenState extends State<SalaScreen> {
     final puede = _sala.sePuedeEmpezar;
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: GestureDetector(
-        onTap: puede
-            ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const GameMultiScreen()),
-                );
-              }
-            : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
-          decoration: BoxDecoration(
-            gradient: puede
-                ? const LinearGradient(
-                    colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
-                  )
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_estado.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _estado,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFF5E6C8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(color: Colors.black, offset: Offset(0, 1), blurRadius: 3),
+                  ],
+                ),
+              ),
+            ),
+          GestureDetector(
+            onTap: puede
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GameMultiScreen()),
+                    );
+                  }
                 : null,
-            color: puede ? null : const Color(0x55000000),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
-          ),
-          child: Text(
-            puede ? 'EMPEZAR' : 'Faltan jugadores',
-            style: TextStyle(
-              color: puede ? const Color(0xFF3A2B12) : const Color(0x88F5E6C8),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
+              decoration: BoxDecoration(
+                gradient: puede
+                    ? const LinearGradient(
+                        colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                      )
+                    : null,
+                color: puede ? null : const Color(0x55000000),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+              ),
+              child: Text(
+                puede ? 'EMPEZAR' : 'Faltan jugadores',
+                style: TextStyle(
+                  color:
+                      puede ? const Color(0xFF3A2B12) : const Color(0x88F5E6C8),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
