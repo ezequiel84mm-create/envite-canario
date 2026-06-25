@@ -19,7 +19,15 @@ class EstadoSala {
   // Equipos ALTERNOS: asientos pares = equipo 0, impares = equipo 1.
   factory EstadoSala.vacia(String anfitrionId) {
     final asientos = List.generate(totalAsientos, (i) {
-      return Asiento(numero: i, equipo: i % 2); // 0,2,4,6 -> A ; 1,3,5,7 -> B
+      // Disposición en zigzag (tablero):
+      //   Izq        Der
+      //   [A] ------ [B]
+      //   [B] ------ [A]
+      // fila = i ~/ 2 ; lado = i % 2 (0=izq, 1=der).
+      // Enfrentados = rivales; compañeros en diagonal.
+      final fila = i ~/ 2;
+      final lado = i % 2;
+      return Asiento(numero: i, equipo: (fila + lado) % 2);
     });
     return EstadoSala(asientos: asientos, anfitrionId: anfitrionId);
   }
