@@ -40,6 +40,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   int _turno = 0;
   int _manosEquipo0 = 0;
   int _manosEquipo1 = 0;
+  // Bazas ganadas por cada jugador (asiento 0..numJug-1).
+  List<int> _bazasAsiento = [0, 0, 0, 0];
   // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
   int _piedrasEquipo0 = 0;
   int _piedrasEquipo1 = 0;
@@ -170,6 +172,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'turno': _turno,
       'manosEquipo0': _manosEquipo0,
       'manosEquipo1': _manosEquipo1,
+      'bazasAsiento': _bazasAsiento,
       'piedrasEquipo0': _piedrasEquipo0,
       'piedrasEquipo1': _piedrasEquipo1,
       'chicosEquipo0': _chicosEquipo0,
@@ -229,6 +232,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _turno = d['turno'] ?? 0;
       _manosEquipo0 = d['manosEquipo0'] ?? 0;
       _manosEquipo1 = d['manosEquipo1'] ?? 0;
+      _bazasAsiento = ((d['bazasAsiento'] as List?) ?? [0, 0, 0, 0])
+          .map((e) => e as int)
+          .toList();
       _piedrasEquipo0 = d['piedrasEquipo0'] ?? 0;
       _piedrasEquipo1 = d['piedrasEquipo1'] ?? 0;
       _chicosEquipo0 = d['chicosEquipo0'] ?? 0;
@@ -518,6 +524,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
+    _bazasAsiento = List.filled(_numJug, 0);
     _rondaTerminada = false;
     _mensaje = _mensajeTurno();
     _mensajeEsTurno = true;
@@ -639,6 +646,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     } else {
       _manosEquipo1++;
     }
+    if (ganador.asiento < _bazasAsiento.length) {
+      _bazasAsiento[ganador.asiento]++;
+    }
     _mensaje = '${_nombrePosicion(ganador.asiento)} gana la mano';
     _mensajeEsTurno = false;
     _turno = ganador.asiento;
@@ -737,26 +747,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 // Barra superior: volver + marcador
                 _barraSuperior(),
 
-                // Compañero (arriba) + pila de bazas de ELLOS
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Transform.scale(
-                      scale: 0.5,
-                      child: PilaGanada(
-                          cantidad: _miEquipo() == 0 ? _manosEquipo1 : _manosEquipo0,
-                          label: 'Ellos'),
-                    ),
-                    Flexible(
-                      child: _jugadorRival(
-                          asiento: _asientoEnPos(2),
-                          etiqueta: _nombrePosicion(_asientoEnPos(2)),
-                          esCompanero: true),
-                    ),
-                    const SizedBox(width: 35),
-                  ],
-                ),
+                // Compañero (arriba)
+                _jugadorRival(asiento: _asientoEnPos(2), etiqueta: _nombrePosicion(_asientoEnPos(2)), esCompanero: true),
 
                 // Zona central: rivales a los lados + cartas jugadas
                 Expanded(
@@ -788,21 +780,15 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 _botonesTumbo(),
                 // Botones del envite (cantar/subir/responder)
                 _botonesEnvite(),
-                // Tus cartas (abajo) + pila de bazas de NOSOTROS
+                // Tus cartas (abajo) + tu pila de bazas
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Transform.scale(
-                        scale: 0.5,
-                        child: PilaGanada(
-                            cantidad: _miEquipo() == 0 ? _manosEquipo0 : _manosEquipo1,
-                            label: 'Nosotros'),
-                      ),
+                      _pilaJugador(_asientoEnPos(0), escala: 0.5),
                       Flexible(child: _misCartasAbanico(misCartas, validas)),
-                      const SizedBox(width: 35),
                     ],
                   ),
                 ),
@@ -975,7 +961,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
             ),
           ),
           const SizedBox(height: 4),
-          _miniCartasBocaAbajo(numCartas),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _pilaJugador(asiento),
+              _miniCartasBocaAbajo(numCartas),
+            ],
+          ),
         ],
       ),
     );
@@ -1007,8 +1000,19 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           ),
           const SizedBox(height: 4),
           _miniCartasBocaAbajo(numCartas, pequeno: true),
+          _pilaJugador(asiento, escala: 0.32),
         ],
       ),
+    );
+  }
+
+  // Mini pila de bazas ganadas por un jugador concreto.
+  Widget _pilaJugador(int asiento, {double escala = 0.42}) {
+    final n = asiento < _bazasAsiento.length ? _bazasAsiento[asiento] : 0;
+    if (n <= 0) return const SizedBox.shrink();
+    return Transform.scale(
+      scale: escala,
+      child: PilaGanada(cantidad: n, label: ''),
     );
   }
 
