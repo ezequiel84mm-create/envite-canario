@@ -57,6 +57,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _manoEsDeTumbo = false;
   int _equipoDecideTumbo = -1; // -1=sin tumbo/forzoso, 0=eq0 decide, 1=eq1
   String _mensaje = '';
+  bool _mensajeEsTurno = false; // si true, el invitado recalcula el texto
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
   int _barajador = 0; // quién baraja esta mano; sale el de su izquierda
@@ -182,6 +183,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'nivelPropuesto': _nivelPropuesto,
       'rondaTerminada': _rondaTerminada,
       'mensaje': _mensaje,
+      'mensajeEsTurno': _mensajeEsTurno,
       'numCartas': _manos.map((m) => m.length).toList(),
     };
     con.enviarATodos(
@@ -238,7 +240,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _equipoCanto = d['equipoCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
       _rondaTerminada = d['rondaTerminada'] ?? false;
-      _mensaje = d['mensaje'] ?? '';
+      _mensajeEsTurno = d['mensajeEsTurno'] ?? false;
+      _mensaje = _mensajeEsTurno ? _mensajeTurno() : (d['mensaje'] ?? '');
       _numCartasPorAsiento =
           ((d['numCartas'] as List?) ?? []).map((e) => e as int).toList();
     });
@@ -465,7 +468,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   // Mensaje del turno actual, según quién soy yo.
   String _mensajeTurno() {
-    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    final miAsiento = _enRed
+        ? (_soyAnfitrion ? 0 : _miAsientoEnRed())
+        : 0;
     if (_turno == miAsiento) return '¡Tu turno!';
     return 'Turno de ${_nombrePosicion(_turno)}';
   }
@@ -526,6 +531,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _manosEquipo1 = 0;
     _rondaTerminada = false;
     _mensaje = _mensajeTurno();
+    _mensajeEsTurno = true;
     // Tumbo: comprobar si algún equipo tiene exactamente 11 piedras.
     final eq0EnTumbo = _piedrasEquipo0 == 11;
     final eq1EnTumbo = _piedrasEquipo1 == 11;
@@ -600,6 +606,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     } else {
       _turno = (_turno + 1) % _numJug;
       _mensaje = _mensajeTurno();
+      _mensajeEsTurno = true;
       setState(() {});
       if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       _continuarSiTocaIA();
@@ -644,6 +651,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _manosEquipo1++;
     }
     _mensaje = '${_nombrePosicion(ganador.asiento)} gana la mano';
+    _mensajeEsTurno = false;
     _turno = ganador.asiento;
 
     setState(() {});
@@ -986,8 +994,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                       fontWeight: FontWeight.bold)),
               const SizedBox(height: 2),
               SizedBox(
-                width: 44,
-                height: 70,
+                width: 66,
+                height: 104,
                 child: FittedBox(child: CardWidget(card: _vira)),
               ),
             ],
