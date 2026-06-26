@@ -147,6 +147,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   String _nombreAsiento(int asiento) {
+    // Si hay config de sala, usar el apodo real del jugador en ese asiento.
+    final cfg = widget.config;
+    if (cfg != null) {
+      for (final j in cfg.jugadores) {
+        if (j.asiento == asiento) return j.nombre;
+      }
+    }
+    // Sin config (modo local de prueba): etiquetas genéricas.
     switch (asiento) {
       case 0:
         return 'Tú';
