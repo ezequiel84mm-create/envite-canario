@@ -12,6 +12,9 @@ import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
 import '../../domain/ai/ai_player_2v2.dart';
 import '../../../../core/settings/music_controller.dart';
+import 'package:audioplayers/audioplayers.dart';
+import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/voces.dart';
 
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
@@ -61,6 +64,30 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   List<CardModel> _miManoRed = []; // mano del invitado recibida por red
   List<int> _numCartasPorAsiento = []; // cuántas cartas tiene cada asiento
+
+  // Reproductor de efectos (voz de los envites).
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  // Reproduce el canto de voz según el nivel de apuesta.
+  // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
+  void _sonidoApuesta(int nivel, {required int equipoCanta}) {
+    if (!AppSettings.instance.efectosActivados) return;
+    const nombres = {1: 'envido', 2: 'siete', 3: 'nueve', 4: 'chico_fuera'};
+    final nombre = nombres[nivel];
+    if (nombre == null) return;
+    // El equipo local usa la voz propia; el rival una voz por defecto.
+    final idVoz = (equipoCanta == _miEquipo())
+        ? AppSettings.instance.vozPropia
+        : Voces.disponibles.first.id;
+    final voz = Voces.porId(idVoz);
+    _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
+  }
+
+  // Reproduce un efecto simple (reparto, recoger baraja).
+  void _reproducirEfecto(String archivo) {
+    if (!AppSettings.instance.efectosActivados) return;
+    _sfxPlayer.play(AssetSource('audio/$archivo'));
+  }
 
   @override
   void initState() {
@@ -220,6 +247,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   @override
   void dispose() {
+    _sfxPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
   }
@@ -271,6 +299,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _nivelPropuesto = _nivelApuesta + 1;
       _mensaje = 'Envite cantado. ¡Responded!';
     }
+    _sonidoApuesta(_nivelPropuesto, equipoCanta: equipo);
     setState(() {});
     _enviarEstadoJuego();
   }
@@ -326,6 +355,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // Suma las piedras de la mano al equipo ganador y comprueba el chico.
   void _finalizarRondaEquipos() {
     final valores = [2, 4, 7, 9, 12];
+    _reproducirEfecto('sonido_recoger_baraja.mp3');
     final valorMano = _manoEsDeTumbo ? 3 : valores[_nivelApuesta];
     final gana0 = _manosEquipo0 > _manosEquipo1;
     if (gana0) {
@@ -411,6 +441,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   void _repartirNuevaRonda() {
+    _reproducirEfecto('sonido_reparto.mp3');
     // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
