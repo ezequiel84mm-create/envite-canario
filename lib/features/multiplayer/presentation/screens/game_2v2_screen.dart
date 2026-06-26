@@ -49,6 +49,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
+  int _equipoTurnoApuesta = -1; // -1=cualquiera puede cantar; si no, solo ese equipo
   // ===== Diálogo fin de mano/chico/partida =====
   String _pendienteDialogo = 'ninguno'; // ninguno/mano/chico/partida
   int _piedrasSumadasDialogo = 0;
@@ -181,6 +182,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'enviteCantado': _enviteCantado,
       'equipoCanto': _equipoCanto,
       'nivelPropuesto': _nivelPropuesto,
+      'equipoTurnoApuesta': _equipoTurnoApuesta,
       'rondaTerminada': _rondaTerminada,
       'mensaje': _mensaje,
       'mensajeEsTurno': _mensajeEsTurno,
@@ -239,6 +241,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _enviteCantado = d['enviteCantado'] ?? false;
       _equipoCanto = d['equipoCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
+      _equipoTurnoApuesta = d['equipoTurnoApuesta'] ?? -1;
       _rondaTerminada = d['rondaTerminada'] ?? false;
       _mensajeEsTurno = d['mensajeEsTurno'] ?? false;
       _mensaje = _mensajeEsTurno ? _mensajeTurno() : (d['mensaje'] ?? '');
@@ -275,19 +278,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // ¿Puede el equipo local cantar/subir ahora?
   bool get _puedoCantar {
     if (_rondaTerminada || _equipoDecideTumbo != -1) return false;
-    if (_nivelApuesta >= 4 && !_enviteCantado) return false;
-    final miEquipo = _miEquipo();
-    if (_enviteCantado) {
-      // Hay envite pendiente: solo puede SUBIR el equipo contrario al que cantó.
-      return _equipoCanto != miEquipo && _nivelPropuesto < 4;
+    if (_enviteCantado) return false;
+    if (_nivelApuesta >= 4) return false;
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != _miEquipo()) {
+      return false;
     }
-    // No hay envite pendiente: cualquiera puede cantar si no se llegó al máximo.
-    return _nivelApuesta < 4;
+    return true;
   }
 
-  // ¿Debe el equipo local responder (hay envite del rival)?
-  bool get _deboResponder =>
-      _enviteCantado && _equipoCanto != _miEquipo();
 
   // Lo llama quien pulsa ENVIDAR / SUBIR.
   void _cantarEnvite() {
@@ -304,21 +302,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   void _anfitrionRegistraCanto(int equipo) {
     if (_rondaTerminada) return;
-    if (_enviteCantado) {
-      // SUBIR: solo el equipo contrario al que cantó.
-      if (equipo == _equipoCanto) return;
-      if (_nivelPropuesto >= 4) return;
-      _nivelPropuesto += 1; // sube un nivel más
-      _equipoCanto = equipo; // ahora cantó este equipo; responde el otro
-      _mensaje = 'Suben la apuesta. ¡Responded!';
-    } else {
-      if (_nivelApuesta >= 4) return;
-      _enviteCantado = true;
-      _equipoCanto = equipo;
-      _nivelPropuesto = _nivelApuesta + 1;
-      _mensaje = 'Envite cantado. ¡Responded!';
-    }
+    if (_enviteCantado) return;
+    if (_nivelApuesta >= 4) return;
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) return;
+    _enviteCantado = true;
+    _equipoCanto = equipo;
+    _nivelPropuesto = _nivelApuesta + 1;
     _sonidoApuesta(_nivelPropuesto, equipoCanta: equipo);
+    _mensaje = 'Envite cantado. ¡Responde el rival!';
     setState(() {});
     _enviarEstadoJuego();
   }
@@ -337,35 +328,31 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   void _anfitrionResuelveRespuesta(String accion) {
     if (!_enviteCantado) return;
     if (accion == 'juego') {
+      final aceptante = _equipoCanto == 0 ? 1 : 0;
       _nivelApuesta = _nivelPropuesto;
       _enviteCantado = false;
       _equipoCanto = -1;
-      _mensaje = 'Envite aceptado.';
+      _equipoTurnoApuesta = aceptante;
+      _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
-      final valores = [2, 4, 7, 9, 12];
-      final nivelAnterior = _nivelPropuesto - 1;
-      final ganaPiedras = nivelAnterior == 0 ? 1 : valores[nivelAnterior];
-      if (_equipoCanto == 0) {
-        _piedrasEquipo0 += ganaPiedras;
-      } else {
-        _piedrasEquipo1 += ganaPiedras;
-      }
-      _ganadorDialogoEquipo = _equipoCanto;
-      _piedrasSumadasDialogo = ganaPiedras;
+      // NO QUIERO = juega con lo que tenemos: se queda en el ultimo nivel
+      // aceptado (_nivelApuesta sin tocar) y la mano sigue. Se cobra al ganar.
       _enviteCantado = false;
       _equipoCanto = -1;
-      _mensaje = 'No quieren. +$ganaPiedras piedras.';
-      _comprobarSoloChico();
+      _equipoTurnoApuesta = -1;
+      _mensaje = 'Juegan con lo apostado (${_nombreNivel(_nivelApuesta)}).';
+    } else if (accion == 'subir') {
+      if (_nivelPropuesto < 4) {
+        _nivelPropuesto += 1;
+        _equipoCanto = _equipoCanto == 0 ? 1 : 0;
+        _sonidoApuesta(_nivelPropuesto, equipoCanta: _equipoCanto);
+        _mensaje = 'Suben la apuesta. ¡Responde el rival!';
+      }
     }
     setState(() {});
     _enviarEstadoJuego();
   }
 
-  // No quieren no acaba la mano: dialogo solo si hubo chico/partida.
-  void _comprobarSoloChico() {
-    final hayChico = _piedrasEquipo0 >= 12 || _piedrasEquipo1 >= 12;
-    if (hayChico) _comprobarFinYMostrarDialogo();
-  }
 
   // Suma las piedras de la mano al equipo ganador y comprueba el chico.
   void _finalizarRondaEquipos() {
@@ -524,6 +511,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _enviteCantado = false;
     _equipoCanto = -1;
     _nivelPropuesto = 0;
+    _equipoTurnoApuesta = -1;
     _manoEsDeTumbo = false;
     _equipoDecideTumbo = -1;
     _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
@@ -1073,47 +1061,59 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   // Fila de botones del envite según el estado.
+  // Fila de botones del envite, al estilo 1v1 pero por equipo.
   Widget _botonesEnvite() {
-    if (_rondaTerminada) return const SizedBox.shrink();
+    if (_rondaTerminada || _equipoDecideTumbo != -1) {
+      return const SizedBox.shrink();
+    }
+    const nombres = ['Base', 'ENVIDO', 'SIETE', 'NUEVE', 'CHICO FUERA'];
 
-    // Si mi equipo debe responder a un envite del rival:
-    if (_deboResponder) {
+    // CASO A: hay envite y mi equipo debe responder (no fue el que canto).
+    if (_enviteCantado && _equipoCanto != _miEquipo()) {
+      final puedeSubir = _nivelPropuesto < 4;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
           children: [
-            Text('${_nombreNivel(_nivelPropuesto)}: ',
-                style: const TextStyle(color: Colors.white, fontSize: 12)),
-            _botonEnvite('ACEPTAR', Colors.green,
-                () => _responderEnvite('juego')),
-            const SizedBox(width: 6),
-            if (_nivelPropuesto < 4)
-              _botonEnvite('SUBIR', Colors.orange, _cantarEnvite),
-            const SizedBox(width: 6),
-            _botonEnvite('NO QUIERO', Colors.red,
-                () => _responderEnvite('paso')),
+            Text('El rival canta ${nombres[_nivelPropuesto]}',
+                style: const TextStyle(
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                _botonEnvite('JUEGO', Colors.green,
+                    () => _responderEnvite('juego')),
+                _botonEnvite('NO QUIERO', Colors.red,
+                    () => _responderEnvite('paso')),
+                if (puedeSubir)
+                  _botonEnvite(nombres[_nivelPropuesto + 1], Colors.orange,
+                      () => _responderEnvite('subir')),
+              ],
+            ),
           ],
         ),
       );
     }
 
-    // Si puedo cantar (y no hay nada pendiente para mí):
-    if (_puedoCantar && !_enviteCantado) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: _botonEnvite(
-            'ENVIDAR (${_nombreNivel(_nivelApuesta + 1)})',
-            Colors.amber, _cantarEnvite),
-      );
-    }
-
-    // Si mi equipo cantó y espera respuesta del rival:
+    // CASO B: mi equipo canto y espera respuesta del rival.
     if (_enviteCantado && _equipoCanto == _miEquipo()) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 6),
         child: Text('Esperando respuesta del rival...',
             style: TextStyle(color: Colors.white70, fontSize: 12)),
+      );
+    }
+
+    // CASO C: no hay envite pendiente -> puedo cantar el siguiente nivel.
+    if (_puedoCantar) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: _botonEnvite(
+            nombres[_nivelApuesta + 1], Colors.amber, _cantarEnvite),
       );
     }
 
