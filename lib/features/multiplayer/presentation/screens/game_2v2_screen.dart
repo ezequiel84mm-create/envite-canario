@@ -562,6 +562,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       mano: mano,
       paloInicialBaza: paloInicial,
       paloVirado: _paloVirado,
+      baza: _baza,
+      asiento: asiento,
     );
   }
 
@@ -1055,12 +1057,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Triunfo',
-                  style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
               SizedBox(
                 width: 66,
                 height: 104,

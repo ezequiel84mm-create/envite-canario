@@ -25,6 +25,8 @@ class TrickEngine2v2 {
     required List<CardModel> mano,
     required Suit? paloInicialBaza,
     required Suit paloVirado,
+    List<CartaJugada2v2> baza = const [],
+    int asiento = -1,
   }) {
     if (paloInicialBaza == null) {
       return mano;
@@ -44,16 +46,49 @@ class TrickEngine2v2 {
       return mano;
     }
 
+    // No es arrastre de triunfo. Prioridad 1: asistir al palo de salida.
     final delPaloInicial =
         mano.where((c) => c.suit == paloInicialBaza).toList();
-    final delTriunfo = mano.where((c) => c.suit == paloVirado).toList();
-    final validas = <CardModel>{...delPaloInicial, ...delTriunfo}.toList();
-
-    if (validas.isNotEmpty) {
-      return validas;
+    if (delPaloInicial.isNotEmpty) {
+      return delPaloInicial;
     }
-
+    // No tengo el palo de salida. Si mi EQUIPO ya va ganando la baza,
+    // puedo tirar lo que quiera (jugar mal, sin montar triunfo).
+    if (asiento >= 0 &&
+        baza.isNotEmpty &&
+        _miEquipoVaGanando(
+            baza: baza, asiento: asiento, paloVirado: paloVirado)) {
+      return mano;
+    }
+    // Mi equipo no va ganando: debo montar triunfo si tengo.
+    final delTriunfo = mano.where((c) => c.suit == paloVirado).toList();
+    if (delTriunfo.isNotEmpty) {
+      return delTriunfo;
+    }
+    // No tengo triunfo: tiro libre.
     return mano;
+  }
+
+  /// Va ganando la baza parcial el equipo del jugador en [asiento].
+  static bool _miEquipoVaGanando({
+    required List<CartaJugada2v2> baza,
+    required int asiento,
+    required Suit paloVirado,
+  }) {
+    if (baza.isEmpty) return false;
+    final paloInicial = baza.first.carta.suit;
+    CartaJugada2v2 lider = baza.first;
+    for (final j in baza.skip(1)) {
+      if (_esMejor(
+        candidata: j.carta,
+        actual: lider.carta,
+        paloVirado: paloVirado,
+        paloInicial: paloInicial,
+      )) {
+        lider = j;
+      }
+    }
+    return (lider.asiento % 2) == (asiento % 2);
   }
 
   /// Determina quién gana una mano completa.
