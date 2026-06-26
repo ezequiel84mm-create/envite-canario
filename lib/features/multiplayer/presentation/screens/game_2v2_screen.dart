@@ -623,6 +623,26 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     return Stack(
       alignment: Alignment.center,
       children: [
+        // La VIRA (triunfo) en el centro, detrás de las cartas jugadas.
+        Align(
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Triunfo',
+                  style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              SizedBox(
+                width: 44,
+                height: 70,
+                child: FittedBox(child: CardWidget(card: _vira)),
+              ),
+            ],
+          ),
+        ),
         // Compañero (arriba) = posición 2
         Align(alignment: Alignment.topCenter,
             child: _cartaJugadaMini(_asientoEnPos(2))),
