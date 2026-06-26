@@ -9,6 +9,8 @@ import '../../network/mensajes_sala.dart';
 import '../../../multiplayer/network/mensajes_red.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../multiplayer/presentation/screens/game_2v2_screen.dart';
+import '../../../multiplayer/presentation/screens/game_3v3_screen.dart';
+import '../../../multiplayer/presentation/screens/game_4v4_screen.dart';
 
 /// Pantalla de SALA (lobby) del modo multijugador.
 /// El anfitrión abre la red y muestra el QR; los invitados se conectan.
@@ -154,9 +156,18 @@ class _SalaScreenState extends State<SalaScreen> {
     if (!mounted) return;
     final idLocal = widget.soyAnfitrion ? 'anfitrion' : _miIdInvitado;
     final config = ConfigPartida.desdeSala(_sala, idLocal);
+    final n = config.numJugadores;
+    Widget pantalla;
+    if (n <= 4) {
+      pantalla = Game2v2Screen(config: config);
+    } else if (n == 6) {
+      pantalla = Game3v3Screen(config: config);
+    } else {
+      pantalla = Game4v4Screen(config: config); // 8 jugadores
+    }
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => Game2v2Screen(config: config)),
+      MaterialPageRoute(builder: (_) => pantalla),
     );
   }
 
