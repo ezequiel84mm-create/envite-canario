@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../sala/domain/models/config_partida.dart';
 import '../../../sala/network/conexion_sala.dart';
+import '../../../sala/network/mensajes_sala.dart';
+import '../../network/mensajes_red.dart';
+import '../../network/traductor_cartas.dart';
 import '../../../../core/enums/suit.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
@@ -34,9 +37,16 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
 
+  // ¿Esta partida es en red? (hay conexión y config)
+  bool get _enRed => widget.conexion != null && widget.config != null;
+  // ¿Soy el anfitrión? (en modo local, sí por defecto)
+  bool get _soyAnfitrion => widget.conexion?.soyAnfitrion ?? true;
+
   // Jugadores en orden de POSICIÓN en la mesa desde la perspectiva local:
   // _ordenMesa[0] = yo (abajo), [1] = siguiente, etc. Vacío en modo local.
   List<JugadorPartida> _ordenMesa = [];
+  List<CardModel> _miManoRed = []; // mano del invitado recibida por red
+  List<int> _numCartasPorAsiento = []; // cuántas cartas tiene cada asiento
 
   @override
   void initState() {
@@ -46,7 +56,114 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _numJug = widget.config!.numJugadores;
       _calcularOrdenMesa();
     }
-    _repartirNuevaRonda();
+    if (_enRed) {
+      _configurarRed();
+      if (_soyAnfitrion) {
+        _repartirNuevaRonda();
+      } else {
+        widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.jugarCarta, {'pedirEstado': true})
+              .codificar());
+        _mensaje = 'Esperando reparto...';
+      }
+    } else {
+      _repartirNuevaRonda();
+    }
+  }
+
+  void _configurarRed() {
+    final con = widget.conexion!;
+    if (_soyAnfitrion) {
+      con.alRecibirDeInvitado = (idInvitado, texto) {
+        final msg = MensajeRed.decodificar(texto);
+        if (msg == null) return;
+        if (msg.tipo == TipoMensajeSala.jugarCarta) {
+          if (msg.datos['pedirEstado'] == true) {
+            _enviarEstadoJuego();
+          } else {
+            final carta = TraductorCartas.desdeTexto(msg.datos['carta']);
+            final asiento = msg.datos['asiento'];
+            if (carta != null && asiento != null) {
+              _anfitrionRecibeJugada(asiento, carta);
+            }
+          }
+        }
+      };
+    } else {
+      con.alRecibirDeAnfitrion = (texto) {
+        final msg = MensajeRed.decodificar(texto);
+        if (msg == null) return;
+        if (msg.tipo == TipoMensajeSala.estadoJuego) {
+          _invitadoRecibeEstado(msg.datos);
+        } else if (msg.tipo == TipoMensajeSala.miMano) {
+          setState(() {
+            _miManoRed = TraductorCartas.listaDesdeTexto(msg.datos['mano'] ?? []);
+          });
+        }
+      };
+    }
+  }
+
+  void _enviarEstadoJuego() {
+    if (!_enRed || !_soyAnfitrion) return;
+    final con = widget.conexion!;
+    final baza = _baza
+        .map((j) => {'asiento': j.asiento, 'carta': TraductorCartas.aTexto(j.carta)})
+        .toList();
+    final comun = {
+      'vira': TraductorCartas.aTexto(_vira),
+      'baza': baza,
+      'turno': _turno,
+      'manosEquipo0': _manosEquipo0,
+      'manosEquipo1': _manosEquipo1,
+      'rondaTerminada': _rondaTerminada,
+      'mensaje': _mensaje,
+      'numCartas': _manos.map((m) => m.length).toList(),
+    };
+    con.enviarATodos(
+        MensajeRed(TipoMensajeSala.estadoJuego, comun).codificar());
+
+    final cfg = widget.config!;
+    for (int asiento = 0; asiento < cfg.jugadores.length; asiento++) {
+      final jug = cfg.jugadores[asiento];
+      if (jug.esIA) continue;
+      if (jug.id == 'anfitrion') continue;
+      con.enviarA(
+          jug.id,
+          MensajeRed(TipoMensajeSala.miMano, {
+            'mano': TraductorCartas.listaATexto(_manos[asiento]),
+          }).codificar());
+    }
+  }
+
+  void _anfitrionRecibeJugada(int asiento, CardModel carta) {
+    if (asiento != _turno || _rondaTerminada) return;
+    final mano = _manos[asiento];
+    final existe = mano.any((cc) =>
+        cc.suit == carta.suit && cc.value == carta.value);
+    if (!existe) return;
+    _jugarCarta(asiento, carta);
+    _enviarEstadoJuego();
+  }
+
+  void _invitadoRecibeEstado(Map<String, dynamic> d) {
+    setState(() {
+      _vira = TraductorCartas.desdeTexto(d['vira'])!;
+      _paloVirado = _vira.suit;
+      _baza = ((d['baza'] as List?) ?? []).map((j) {
+        return CartaJugada2v2(
+          asiento: j['asiento'],
+          carta: TraductorCartas.desdeTexto(j['carta'])!,
+        );
+      }).toList();
+      _turno = d['turno'] ?? 0;
+      _manosEquipo0 = d['manosEquipo0'] ?? 0;
+      _manosEquipo1 = d['manosEquipo1'] ?? 0;
+      _rondaTerminada = d['rondaTerminada'] ?? false;
+      _mensaje = d['mensaje'] ?? '';
+      _numCartasPorAsiento =
+          ((d['numCartas'] as List?) ?? []).map((e) => e as int).toList();
+    });
   }
 
   // Ordena los jugadores empezando por el local, dando la vuelta a la mesa.
@@ -90,6 +207,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _mensaje = '¡Tu turno!';
     setState(() {});
     _continuarSiTocaIA();
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
   }
 
   List<CardModel> _validasDe(int asiento) {
@@ -101,7 +219,25 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     );
   }
 
+  // Mi asiento en la partida (índice en la config cuyo id == idLocal).
+  int _miAsientoEnRed() {
+    final cfg = widget.config!;
+    for (int i = 0; i < cfg.jugadores.length; i++) {
+      if (cfg.jugadores[i].id == cfg.idLocal) return i;
+    }
+    return 0;
+  }
+
   void _jugarCartaHumano(CardModel carta) {
+    if (_enRed && !_soyAnfitrion) {
+      // El invitado manda su carta al anfitrión (no la juega local).
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.jugarCarta, {
+          'carta': TraductorCartas.aTexto(carta),
+          'asiento': _miAsientoEnRed(),
+        }).codificar());
+      return;
+    }
     if (_turno != 0 || _rondaTerminada) return;
     final validas = _validasDe(0);
     if (!validas.contains(carta)) {
@@ -206,7 +342,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final misCartas = _manos.isNotEmpty ? _manos[0] : <CardModel>[];
+    final misCartas = (_enRed && !_soyAnfitrion)
+        ? _miManoRed
+        : (_manos.isNotEmpty ? _manos[0] : <CardModel>[]);
     final validas =
         _turno == 0 && !_rondaTerminada ? _validasDe(0) : <CardModel>[];
 
