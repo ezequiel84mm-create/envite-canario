@@ -30,11 +30,15 @@ class _GameMultiScreenState extends State<GameMultiScreen> {
   int _manosEquipo1 = 0;
   String _mensaje = '';
   bool _rondaTerminada = false;
+  int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
 
   @override
   void initState() {
     super.initState();
     MusicController.instance.pausar();
+    if (widget.config != null) {
+      _numJug = widget.config!.numJugadores;
+    }
     _repartirNuevaRonda();
   }
 
@@ -45,7 +49,7 @@ class _GameMultiScreenState extends State<GameMultiScreen> {
   }
 
   void _repartirNuevaRonda() {
-    final reparto = DealEngine2v2.repartir();
+    final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
     _paloVirado = reparto.paloVirado;
     _vira = reparto.vira;
@@ -82,10 +86,10 @@ class _GameMultiScreenState extends State<GameMultiScreen> {
     _manos[asiento].remove(carta);
     _baza.add(CartaJugada2v2(asiento: asiento, carta: carta));
 
-    if (_baza.length == 4) {
+    if (_baza.length == _numJug) {
       _resolverBaza();
     } else {
-      _turno = (_turno + 1) % 4;
+      _turno = (_turno + 1) % _numJug;
       setState(() {});
       _continuarSiTocaIA();
     }
@@ -94,7 +98,7 @@ class _GameMultiScreenState extends State<GameMultiScreen> {
   void _continuarSiTocaIA() {
     if (_rondaTerminada) return;
     if (_turno == 0) return;
-    if (_baza.length == 4) return;
+    if (_baza.length == _numJug) return;
 
     Future.delayed(const Duration(milliseconds: 700), () {
       if (!mounted || _rondaTerminada) return;
