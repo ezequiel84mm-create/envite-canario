@@ -650,8 +650,13 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     Future.delayed(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
       _baza = [];
+      _reproducirEfecto('sonido_recoger_baraja.mp3');
+      // La mano se gana al llegar a 2 bazas (no hace falta jugar la 3a).
+      // Si se acaban las cartas sin que nadie llegue a 2 (no deberia pasar
+      // en 2 de 3), tambien se cierra.
       final cartasRestantes = _manos.fold<int>(0, (s, m) => s + m.length);
-      if (cartasRestantes == 0) {
+      final hayGanador2Bazas = _manosEquipo0 >= 2 || _manosEquipo1 >= 2;
+      if (hayGanador2Bazas || cartasRestantes == 0) {
         _rondaTerminada = true;
         _barajador = (_barajador + 1) % _numJug; // rota para la próxima mano
         _finalizarRondaEquipos();
@@ -732,8 +737,26 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 // Barra superior: volver + marcador
                 _barraSuperior(),
 
-                // Compañero (arriba)
-                _jugadorRival(asiento: _asientoEnPos(2), etiqueta: _nombrePosicion(_asientoEnPos(2)), esCompanero: true),
+                // Compañero (arriba) + pila de bazas de ELLOS
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Transform.scale(
+                      scale: 0.5,
+                      child: PilaGanada(
+                          cantidad: _miEquipo() == 0 ? _manosEquipo1 : _manosEquipo0,
+                          label: 'Ellos'),
+                    ),
+                    Flexible(
+                      child: _jugadorRival(
+                          asiento: _asientoEnPos(2),
+                          etiqueta: _nombrePosicion(_asientoEnPos(2)),
+                          esCompanero: true),
+                    ),
+                    const SizedBox(width: 35),
+                  ],
+                ),
 
                 // Zona central: rivales a los lados + cartas jugadas
                 Expanded(
@@ -765,10 +788,23 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 _botonesTumbo(),
                 // Botones del envite (cantar/subir/responder)
                 _botonesEnvite(),
-                // Tus cartas (abajo, en abanico)
+                // Tus cartas (abajo) + pila de bazas de NOSOTROS
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
-                  child: _misCartasAbanico(misCartas, validas),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Transform.scale(
+                        scale: 0.5,
+                        child: PilaGanada(
+                            cantidad: _miEquipo() == 0 ? _manosEquipo0 : _manosEquipo1,
+                            label: 'Nosotros'),
+                      ),
+                      Flexible(child: _misCartasAbanico(misCartas, validas)),
+                      const SizedBox(width: 35),
+                    ],
+                  ),
                 ),
 
                 if (_rondaTerminada)
@@ -796,8 +832,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     final piedrasRival = _miEquipo() == 0 ? _piedrasEquipo1 : _piedrasEquipo0;
     final misChicos = _miEquipo() == 0 ? _chicosEquipo0 : _chicosEquipo1;
     final chicosRival = _miEquipo() == 0 ? _chicosEquipo1 : _chicosEquipo0;
-    final misBazas = _miEquipo() == 0 ? _manosEquipo0 : _manosEquipo1;
-    final bazasRival = _miEquipo() == 0 ? _manosEquipo1 : _manosEquipo0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
       child: Row(
@@ -820,7 +854,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
             child: _panelMarcador(
               titulo: 'NOSOTROS',
               piedras: misPiedras,
-              bazas: misBazas,
               colorTop: const Color(0xFF2E78C9),
               colorBottom: const Color(0xFF154A82),
               colorTitulo: const Color(0xFFE6F1FB),
@@ -860,7 +893,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
             child: _panelMarcador(
               titulo: 'ELLOS',
               piedras: piedrasRival,
-              bazas: bazasRival,
               colorTop: const Color(0xFFC24747),
               colorBottom: const Color(0xFF8F2424),
               colorTitulo: const Color(0xFFFCEBEB),
@@ -876,7 +908,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   Widget _panelMarcador({
     required String titulo,
     required int piedras,
-    required int bazas,
     required Color colorTop,
     required Color colorBottom,
     required Color colorTitulo,
@@ -900,9 +931,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           Garbanzos(piedras: piedras, color: const Color(0xFFE3C28A)),
           const SizedBox(height: 6),
           Text('$piedras piedras',
-              style: TextStyle(fontSize: 9, color: colorPiedras)),
-          const SizedBox(height: 2),
-          Text('bazas: $bazas',
               style: TextStyle(fontSize: 9, color: colorPiedras)),
         ],
       ),
