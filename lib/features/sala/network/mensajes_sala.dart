@@ -26,4 +26,10 @@ class TipoMensajeSala {
 
   // INVITADO -> ANFITRIÓN: "juego esta carta".
   static const String jugarCarta = 'JUEGO_JUGAR_CARTA';
+
+  // INVITADO -> ANFITRIÓN: "mi equipo canta/sube el envite".
+  static const String proponerEnvite = 'JUEGO_PROPONER_ENVITE';
+
+  // INVITADO -> ANFITRIÓN: respuesta al envite (juego/paso).
+  static const String respuestaEnvite = 'JUEGO_RESPUESTA_ENVITE';
 }

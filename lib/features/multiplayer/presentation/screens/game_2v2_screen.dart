@@ -41,6 +41,11 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   int _piedrasEquipo1 = 0;
   int _chicosEquipo0 = 0;
   int _chicosEquipo1 = 0;
+  // ===== Envite por equipo =====
+  int _nivelApuesta = 0;       // 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
+  bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
+  int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
+  int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
   String _mensaje = '';
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
@@ -92,6 +97,11 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
               _anfitrionRecibeJugada(asiento, carta);
             }
           }
+        } else if (msg.tipo == TipoMensajeSala.proponerEnvite) {
+          final equipo = msg.datos['equipo'];
+          if (equipo != null) _anfitrionRegistraCanto(equipo);
+        } else if (msg.tipo == TipoMensajeSala.respuestaEnvite) {
+          _anfitrionResuelveRespuesta(msg.datos['accion']);
         }
       };
     } else {
@@ -125,6 +135,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'piedrasEquipo1': _piedrasEquipo1,
       'chicosEquipo0': _chicosEquipo0,
       'chicosEquipo1': _chicosEquipo1,
+      'nivelApuesta': _nivelApuesta,
+      'enviteCantado': _enviteCantado,
+      'equipoCanto': _equipoCanto,
+      'nivelPropuesto': _nivelPropuesto,
       'rondaTerminada': _rondaTerminada,
       'mensaje': _mensaje,
       'numCartas': _manos.map((m) => m.length).toList(),
@@ -172,6 +186,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _piedrasEquipo1 = d['piedrasEquipo1'] ?? 0;
       _chicosEquipo0 = d['chicosEquipo0'] ?? 0;
       _chicosEquipo1 = d['chicosEquipo1'] ?? 0;
+      _nivelApuesta = d['nivelApuesta'] ?? 0;
+      _enviteCantado = d['enviteCantado'] ?? false;
+      _equipoCanto = d['equipoCanto'] ?? -1;
+      _nivelPropuesto = d['nivelPropuesto'] ?? 0;
       _rondaTerminada = d['rondaTerminada'] ?? false;
       _mensaje = d['mensaje'] ?? '';
       _numCartasPorAsiento =
@@ -197,10 +215,108 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     super.dispose();
   }
 
+  // ===== ENVITE =====
+  // ¿Puede el equipo local cantar/subir ahora?
+  bool get _puedoCantar {
+    if (_rondaTerminada || _nivelApuesta >= 4 && !_enviteCantado) return false;
+    final miEquipo = _miEquipo();
+    if (_enviteCantado) {
+      // Hay envite pendiente: solo puede SUBIR el equipo contrario al que cantó.
+      return _equipoCanto != miEquipo && _nivelPropuesto < 4;
+    }
+    // No hay envite pendiente: cualquiera puede cantar si no se llegó al máximo.
+    return _nivelApuesta < 4;
+  }
+
+  // ¿Debe el equipo local responder (hay envite del rival)?
+  bool get _deboResponder =>
+      _enviteCantado && _equipoCanto != _miEquipo();
+
+  // Lo llama quien pulsa ENVIDAR / SUBIR.
+  void _cantarEnvite() {
+    if (!_puedoCantar) return;
+    final miEquipo = _miEquipo();
+    if (_soyAnfitrion) {
+      _anfitrionRegistraCanto(miEquipo);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.proponerEnvite, {'equipo': miEquipo})
+            .codificar());
+    }
+  }
+
+  void _anfitrionRegistraCanto(int equipo) {
+    if (_rondaTerminada) return;
+    if (_enviteCantado) {
+      // SUBIR: solo el equipo contrario al que cantó.
+      if (equipo == _equipoCanto) return;
+      if (_nivelPropuesto >= 4) return;
+      _nivelPropuesto += 1; // sube un nivel más
+      _equipoCanto = equipo; // ahora cantó este equipo; responde el otro
+      _mensaje = 'Suben la apuesta. ¡Responded!';
+    } else {
+      if (_nivelApuesta >= 4) return;
+      _enviteCantado = true;
+      _equipoCanto = equipo;
+      _nivelPropuesto = _nivelApuesta + 1;
+      _mensaje = 'Envite cantado. ¡Responded!';
+    }
+    setState(() {});
+    _enviarEstadoJuego();
+  }
+
+  void _responderEnvite(String accion) {
+    if (!_enviteCantado) return;
+    if (_soyAnfitrion) {
+      _anfitrionResuelveRespuesta(accion);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.respuestaEnvite, {'accion': accion})
+            .codificar());
+    }
+  }
+
+  void _anfitrionResuelveRespuesta(String accion) {
+    if (!_enviteCantado) return;
+    if (accion == 'juego') {
+      _nivelApuesta = _nivelPropuesto;
+      _enviteCantado = false;
+      _equipoCanto = -1;
+      _mensaje = 'Envite aceptado.';
+    } else if (accion == 'paso') {
+      final valores = [2, 4, 7, 9, 12];
+      final nivelAnterior = _nivelPropuesto - 1;
+      final ganaPiedras = nivelAnterior == 0 ? 1 : valores[nivelAnterior];
+      if (_equipoCanto == 0) {
+        _piedrasEquipo0 += ganaPiedras;
+      } else {
+        _piedrasEquipo1 += ganaPiedras;
+      }
+      _enviteCantado = false;
+      _equipoCanto = -1;
+      _mensaje = 'No quieren. +$ganaPiedras piedras.';
+      _comprobarChicoEquipos();
+    }
+    setState(() {});
+    _enviarEstadoJuego();
+  }
+
+  void _comprobarChicoEquipos() {
+    if (_piedrasEquipo0 >= 12) {
+      _chicosEquipo0++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+    } else if (_piedrasEquipo1 >= 12) {
+      _chicosEquipo1++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+    }
+  }
+
   // Suma las piedras de la mano al equipo ganador y comprueba el chico.
   void _finalizarRondaEquipos() {
-    // De momento, nivel Base = 2 piedras (el envite vendrá después).
-    const valorMano = 2;
+    final valores = [2, 4, 7, 9, 12];
+    final valorMano = valores[_nivelApuesta];
     final gana0 = _manosEquipo0 > _manosEquipo1;
     if (gana0) {
       _piedrasEquipo0 += valorMano;
@@ -249,6 +365,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _paloVirado = reparto.paloVirado;
     _vira = reparto.vira;
     _baza = [];
+    _nivelApuesta = 0;
+    _enviteCantado = false;
+    _equipoCanto = -1;
+    _nivelPropuesto = 0;
     _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
@@ -478,6 +598,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                   ),
                 ),
 
+                // Botones del envite (cantar/subir/responder)
+                _botonesEnvite(),
                 // Tus cartas (abajo, en abanico)
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
@@ -729,6 +851,75 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
         height: 95,
         child: FittedBox(child: CardWidget(card: carta)),
       ),
+    );
+  }
+
+  // Nombre del nivel de apuesta propuesto.
+  String _nombreNivel(int nivel) {
+    const nombres = ['Base', 'Envido', 'Siete', 'Nueve', 'Chico fuera'];
+    if (nivel >= 0 && nivel < nombres.length) return nombres[nivel];
+    return '';
+  }
+
+  // Fila de botones del envite según el estado.
+  Widget _botonesEnvite() {
+    if (_rondaTerminada) return const SizedBox.shrink();
+
+    // Si mi equipo debe responder a un envite del rival:
+    if (_deboResponder) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('${_nombreNivel(_nivelPropuesto)}: ',
+                style: const TextStyle(color: Colors.white, fontSize: 12)),
+            _botonEnvite('ACEPTAR', Colors.green,
+                () => _responderEnvite('juego')),
+            const SizedBox(width: 6),
+            if (_nivelPropuesto < 4)
+              _botonEnvite('SUBIR', Colors.orange, _cantarEnvite),
+            const SizedBox(width: 6),
+            _botonEnvite('NO QUIERO', Colors.red,
+                () => _responderEnvite('paso')),
+          ],
+        ),
+      );
+    }
+
+    // Si puedo cantar (y no hay nada pendiente para mí):
+    if (_puedoCantar && !_enviteCantado) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: _botonEnvite(
+            'ENVIDAR (${_nombreNivel(_nivelApuesta + 1)})',
+            Colors.amber, _cantarEnvite),
+      );
+    }
+
+    // Si mi equipo cantó y espera respuesta del rival:
+    if (_enviteCantado && _equipoCanto == _miEquipo()) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Text('Esperando respuesta del rival...',
+            style: TextStyle(color: Colors.white70, fontSize: 12)),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _botonEnvite(String texto, Color color, VoidCallback onTap) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 32),
+      ),
+      child: Text(texto,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
