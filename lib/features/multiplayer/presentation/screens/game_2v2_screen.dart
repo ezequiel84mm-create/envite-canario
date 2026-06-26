@@ -484,12 +484,23 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   // Compañero arriba: cartas boca abajo en mini.
+  // Número de cartas que tiene un asiento (en red usa lo recibido).
+  int _cartasDe(int asiento) {
+    if (_enRed && !_soyAnfitrion) {
+      if (asiento < _numCartasPorAsiento.length) {
+        return _numCartasPorAsiento[asiento];
+      }
+      return 0;
+    }
+    return _manos.isNotEmpty ? _manos[asiento].length : 0;
+  }
+
   Widget _jugadorRival({
     required int asiento,
     required String etiqueta,
     bool esCompanero = false,
   }) {
-    final numCartas = _manos.isNotEmpty ? _manos[asiento].length : 0;
+    final numCartas = _cartasDe(asiento);
     final esTurno = _turno == asiento && !_rondaTerminada;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -519,7 +530,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   // Rivales laterales: etiqueta + cartas boca abajo en vertical mini.
   Widget _jugadorRivalLateral({required int asiento, required String etiqueta}) {
-    final numCartas = _manos.isNotEmpty ? _manos[asiento].length : 0;
+    final numCartas = _cartasDe(asiento);
     final esTurno = _turno == asiento && !_rondaTerminada;
     return SizedBox(
       width: 56,
