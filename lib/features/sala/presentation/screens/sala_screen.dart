@@ -28,6 +28,7 @@ class _SalaScreenState extends State<SalaScreen> {
   final ConexionSala _conexion = ConexionSala();
   String? _ip; // IP del anfitrión (para el QR)
   String _miIdInvitado = ''; // solo invitado: su id asignado por el anfitrión
+  bool _yendoAlJuego = false; // si true, el dispose NO cierra la conexión
   String _estado = '';
 
   @override
@@ -157,13 +158,14 @@ class _SalaScreenState extends State<SalaScreen> {
     final idLocal = widget.soyAnfitrion ? 'anfitrion' : _miIdInvitado;
     final config = ConfigPartida.desdeSala(_sala, idLocal);
     final n = config.numJugadores;
+    _yendoAlJuego = true; // la conexión sigue viva en el juego
     Widget pantalla;
     if (n <= 4) {
-      pantalla = Game2v2Screen(config: config);
+      pantalla = Game2v2Screen(config: config, conexion: _conexion);
     } else if (n == 6) {
-      pantalla = Game3v3Screen(config: config);
+      pantalla = Game3v3Screen(config: config, conexion: _conexion);
     } else {
-      pantalla = Game4v4Screen(config: config); // 8 jugadores
+      pantalla = Game4v4Screen(config: config, conexion: _conexion);
     }
     Navigator.pushReplacement(
       context,
@@ -242,7 +244,7 @@ class _SalaScreenState extends State<SalaScreen> {
 
   @override
   void dispose() {
-    _conexion.cerrar();
+    if (!_yendoAlJuego) _conexion.cerrar();
     super.dispose();
   }
 
