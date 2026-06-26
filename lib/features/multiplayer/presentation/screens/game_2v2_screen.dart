@@ -271,7 +271,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       if (_turno == 0) return;
     }
 
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
       final validas = _validasDe(asiento);
@@ -303,7 +303,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
     // Pausa para que se vea la baza completa antes de limpiarla.
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
-    Future.delayed(const Duration(milliseconds: 1100), () {
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
       _baza = [];
       final cartasRestantes = _manos.fold<int>(0, (s, m) => s + m.length);
