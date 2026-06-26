@@ -8,7 +8,7 @@ import '../../network/conexion_sala.dart';
 import '../../network/mensajes_sala.dart';
 import '../../../multiplayer/network/mensajes_red.dart';
 import '../../../../core/settings/app_settings.dart';
-import '../../../multiplayer/presentation/screens/game_multi_screen.dart';
+import '../../../multiplayer/presentation/screens/game_2v2_screen.dart';
 
 /// Pantalla de SALA (lobby) del modo multijugador.
 /// El anfitrión abre la red y muestra el QR; los invitados se conectan.
@@ -156,7 +156,7 @@ class _SalaScreenState extends State<SalaScreen> {
     final config = ConfigPartida.desdeSala(_sala, idLocal);
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => GameMultiScreen(config: config)),
+      MaterialPageRoute(builder: (_) => Game2v2Screen(config: config)),
     );
   }
 
