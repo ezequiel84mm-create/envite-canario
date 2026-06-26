@@ -105,6 +105,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           if (equipo != null) _anfitrionRegistraCanto(equipo);
         } else if (msg.tipo == TipoMensajeSala.respuestaEnvite) {
           _anfitrionResuelveRespuesta(msg.datos['accion']);
+        } else if (msg.tipo == TipoMensajeSala.decisionTumbo) {
+          _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
         }
       };
     } else {
