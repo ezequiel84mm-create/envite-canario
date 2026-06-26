@@ -214,9 +214,18 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   List<CardModel> _validasDe(int asiento) {
+    // En red, el invitado calcula sus válidas sobre su mano recibida.
+    final List<CardModel> mano;
+    if (_enRed && !_soyAnfitrion) {
+      mano = _miManoRed;
+    } else if (asiento < _manos.length) {
+      mano = _manos[asiento];
+    } else {
+      return <CardModel>[];
+    }
     final paloInicial = _baza.isEmpty ? null : _baza.first.carta.suit;
     return TrickEngine2v2.cartasValidas(
-      mano: _manos[asiento],
+      mano: mano,
       paloInicialBaza: paloInicial,
       paloVirado: _paloVirado,
     );
@@ -348,8 +357,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     final misCartas = (_enRed && !_soyAnfitrion)
         ? _miManoRed
         : (_manos.isNotEmpty ? _manos[0] : <CardModel>[]);
-    final validas =
-        _turno == 0 && !_rondaTerminada ? _validasDe(0) : <CardModel>[];
+    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    final validas = _turno == miAsiento && !_rondaTerminada
+        ? _validasDe(miAsiento)
+        : <CardModel>[];
 
     return Scaffold(
       body: Stack(
