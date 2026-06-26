@@ -268,14 +268,22 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     } else {
       _turno = (_turno + 1) % _numJug;
       setState(() {});
+      if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       _continuarSiTocaIA();
     }
   }
 
   void _continuarSiTocaIA() {
     if (_rondaTerminada) return;
-    if (_turno == 0) return;
     if (_baza.length == _numJug) return;
+    if (_enRed) {
+      if (!_soyAnfitrion) return;
+      final cfg = widget.config!;
+      if (_turno >= cfg.jugadores.length) return;
+      if (!cfg.jugadores[_turno].esIA) return;
+    } else {
+      if (_turno == 0) return;
+    }
 
     Future.delayed(const Duration(milliseconds: 700), () {
       if (!mounted || _rondaTerminada) return;
@@ -308,6 +316,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     setState(() {});
 
     // Pausa para que se vea la baza completa antes de limpiarla.
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
     Future.delayed(const Duration(milliseconds: 1100), () {
       if (!mounted) return;
       _baza = [];
@@ -319,6 +328,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
             : 'Equipo rival gana la ronda ($_manosEquipo0 - $_manosEquipo1)';
       }
       setState(() {});
+      if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       if (!_rondaTerminada) _continuarSiTocaIA();
     });
   }
