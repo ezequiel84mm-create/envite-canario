@@ -39,6 +39,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   String _mensaje = '';
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
+  int _barajador = 0; // quién baraja esta mano; sale el de su izquierda
 
   // ¿Esta partida es en red? (hay conexión y config)
   bool get _enRed => widget.conexion != null && widget.config != null;
@@ -183,17 +184,25 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     super.dispose();
   }
 
+  // Mensaje del turno actual, según quién soy yo.
+  String _mensajeTurno() {
+    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    if (_turno == miAsiento) return '¡Tu turno!';
+    return 'Turno de ${_nombrePosicion(_turno)}';
+  }
+
   void _repartirNuevaRonda() {
+    // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
     _paloVirado = reparto.paloVirado;
     _vira = reparto.vira;
     _baza = [];
-    _turno = 0;
+    _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
     _rondaTerminada = false;
-    _mensaje = '¡Tu turno!';
+    _mensaje = _mensajeTurno();
     setState(() {});
     _continuarSiTocaIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
@@ -253,6 +262,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _resolverBaza();
     } else {
       _turno = (_turno + 1) % _numJug;
+      _mensaje = _mensajeTurno();
       setState(() {});
       if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       _continuarSiTocaIA();
@@ -309,6 +319,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       final cartasRestantes = _manos.fold<int>(0, (s, m) => s + m.length);
       if (cartasRestantes == 0) {
         _rondaTerminada = true;
+        _barajador = (_barajador + 1) % _numJug; // rota para la próxima mano
         _mensaje = _manosEquipo0 > _manosEquipo1
             ? '¡TU EQUIPO gana la ronda! ($_manosEquipo0 - $_manosEquipo1)'
             : 'Equipo rival gana la ronda ($_manosEquipo0 - $_manosEquipo1)';
