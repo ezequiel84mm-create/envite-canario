@@ -49,6 +49,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
+  // ===== Diálogo fin de mano/chico/partida =====
+  String _pendienteDialogo = 'ninguno'; // ninguno/mano/chico/partida
+  int _piedrasSumadasDialogo = 0;
+  int _ganadorDialogoEquipo = -1; // equipo (0/1) que gana lo que muestra el diálogo
   // ===== Tumbo por equipo =====
   bool _manoEsDeTumbo = false;
   int _equipoDecideTumbo = -1; // -1=sin tumbo/forzoso, 0=eq0 decide, 1=eq1
@@ -170,6 +174,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'nivelApuesta': _nivelApuesta,
       'manoEsDeTumbo': _manoEsDeTumbo,
       'equipoDecideTumbo': _equipoDecideTumbo,
+      'pendienteDialogo': _pendienteDialogo,
+      'piedrasSumadasDialogo': _piedrasSumadasDialogo,
+      'ganadorDialogoEquipo': _ganadorDialogoEquipo,
       'enviteCantado': _enviteCantado,
       'equipoCanto': _equipoCanto,
       'nivelPropuesto': _nivelPropuesto,
@@ -204,6 +211,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   void _invitadoRecibeEstado(Map<String, dynamic> d) {
+    final anteriorDialogo = _pendienteDialogo;
     setState(() {
       _vira = TraductorCartas.desdeTexto(d['vira'])!;
       _paloVirado = _vira.suit;
@@ -223,6 +231,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _nivelApuesta = d['nivelApuesta'] ?? 0;
       _manoEsDeTumbo = d['manoEsDeTumbo'] ?? false;
       _equipoDecideTumbo = d['equipoDecideTumbo'] ?? -1;
+      _pendienteDialogo = d['pendienteDialogo'] ?? 'ninguno';
+      _piedrasSumadasDialogo = d['piedrasSumadasDialogo'] ?? 0;
+      _ganadorDialogoEquipo = d['ganadorDialogoEquipo'] ?? -1;
       _enviteCantado = d['enviteCantado'] ?? false;
       _equipoCanto = d['equipoCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
@@ -231,6 +242,11 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _numCartasPorAsiento =
           ((d['numCartas'] as List?) ?? []).map((e) => e as int).toList();
     });
+    if (_pendienteDialogo != 'ninguno' && anteriorDialogo == 'ninguno') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mostrarDialogoFinEquipos();
+      });
+    }
   }
 
 
@@ -331,25 +347,21 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       } else {
         _piedrasEquipo1 += ganaPiedras;
       }
+      _ganadorDialogoEquipo = _equipoCanto;
+      _piedrasSumadasDialogo = ganaPiedras;
       _enviteCantado = false;
       _equipoCanto = -1;
       _mensaje = 'No quieren. +$ganaPiedras piedras.';
-      _comprobarChicoEquipos();
+      _comprobarSoloChico();
     }
     setState(() {});
     _enviarEstadoJuego();
   }
 
-  void _comprobarChicoEquipos() {
-    if (_piedrasEquipo0 >= 12) {
-      _chicosEquipo0++;
-      _piedrasEquipo0 = 0;
-      _piedrasEquipo1 = 0;
-    } else if (_piedrasEquipo1 >= 12) {
-      _chicosEquipo1++;
-      _piedrasEquipo0 = 0;
-      _piedrasEquipo1 = 0;
-    }
+  // No quieren no acaba la mano: dialogo solo si hubo chico/partida.
+  void _comprobarSoloChico() {
+    final hayChico = _piedrasEquipo0 >= 12 || _piedrasEquipo1 >= 12;
+    if (hayChico) _comprobarFinYMostrarDialogo();
   }
 
   // Suma las piedras de la mano al equipo ganador y comprueba el chico.
@@ -363,21 +375,81 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     } else {
       _piedrasEquipo1 += valorMano;
     }
-    // Comprobar chico (12 piedras) y fin de partida (2 chicos).
+    _ganadorDialogoEquipo = gana0 ? 0 : 1;
+    _piedrasSumadasDialogo = valorMano;
+    _comprobarFinYMostrarDialogo();
+  }
+
+  // Detección central: chico (12 piedras) y partida (2 chicos).
+  // Fija _pendienteDialogo y dispara el diálogo (anfitrión).
+  void _comprobarFinYMostrarDialogo() {
+    const chicosParaGanar = 4; // 2v2 se gana a 4 chicos
+    bool huboChico = false;
     if (_piedrasEquipo0 >= 12) {
       _chicosEquipo0++;
       _piedrasEquipo0 = 0;
       _piedrasEquipo1 = 0;
+      _ganadorDialogoEquipo = 0;
+      huboChico = true;
     } else if (_piedrasEquipo1 >= 12) {
       _chicosEquipo1++;
       _piedrasEquipo0 = 0;
       _piedrasEquipo1 = 0;
+      _ganadorDialogoEquipo = 1;
+      huboChico = true;
     }
+    final finPartida = _chicosEquipo0 >= chicosParaGanar ||
+        _chicosEquipo1 >= chicosParaGanar;
+    if (finPartida) {
+      _pendienteDialogo = 'partida';
+    } else if (huboChico) {
+      _pendienteDialogo = 'chico';
+    } else {
+      _pendienteDialogo = 'mano';
+    }
+    _rondaTerminada = true;
+    setState(() {});
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mostrarDialogoFinEquipos();
+    });
+  }
+
+  void _mostrarDialogoFinEquipos() {
+    if (!mounted || _pendienteDialogo == 'ninguno') return;
     final miEquipo = _miEquipo();
-    final ganadorEquipo = gana0 ? 0 : 1;
-    _mensaje = (ganadorEquipo == miEquipo)
-        ? '¡Tu equipo gana la mano! (+$valorMano)'
-        : 'El equipo rival gana la mano (+$valorMano)';
+    final ganaMiEquipo = _ganadorDialogoEquipo == miEquipo;
+    final esChico = _pendienteDialogo == 'chico';
+    final esPartida = _pendienteDialogo == 'partida';
+    final misChicos = miEquipo == 0 ? _chicosEquipo0 : _chicosEquipo1;
+    final chicosRival = miEquipo == 0 ? _chicosEquipo1 : _chicosEquipo0;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => DialogoFinManoEquipos(
+        gano: ganaMiEquipo,
+        huboChico: esChico,
+        finPartida: esPartida,
+        piedrasSumadas: _piedrasSumadasDialogo,
+        chicosYo: misChicos,
+        chicosRival: chicosRival,
+        ganadorEsYo: ganaMiEquipo,
+        onContinuar: () {
+          Navigator.pop(context);
+          _pendienteDialogo = 'ninguno';
+          if (_soyAnfitrion || !_enRed) {
+            if (esPartida) {
+              _chicosEquipo0 = 0;
+              _chicosEquipo1 = 0;
+            }
+            _repartirNuevaRonda();
+          }
+        },
+        onSalir: esPartida
+            ? () => Navigator.of(context).popUntil((r) => r.isFirst)
+            : null,
+      ),
+    );
   }
 
   // El equipo del jugador local (0 o 1).
@@ -425,19 +497,14 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _equipoDecideTumbo = -1;
       final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
       _mensaje = '$nombre se retira. Rival +1 piedra.';
-      if (_piedrasEquipo0 >= 12) {
-        _chicosEquipo0++;
-        _piedrasEquipo0 = 0;
-        _piedrasEquipo1 = 0;
-      } else if (_piedrasEquipo1 >= 12) {
-        _chicosEquipo1++;
-        _piedrasEquipo0 = 0;
-        _piedrasEquipo1 = 0;
-      }
+      // El rival gana 1 piedra y la mano termina: usar el flujo del dialogo.
+      _ganadorDialogoEquipo = rival;
+      _piedrasSumadasDialogo = 1;
+      _comprobarFinYMostrarDialogo();
+      return;
     }
     setState(() {});
     _enviarEstadoJuego();
-    if (!juega) Future.delayed(const Duration(seconds: 2), _repartirNuevaRonda);
   }
 
   void _repartirNuevaRonda() {
@@ -1114,5 +1181,226 @@ class _Abanico2v2 extends StatelessWidget {
         }),
       ),
     );
+  }
+}
+class DialogoFinManoEquipos extends StatelessWidget {
+  final bool gano;
+  final bool huboChico;
+  final bool finPartida;
+  final int piedrasSumadas;
+  final int chicosYo;
+  final int chicosRival;
+  final bool ganadorEsYo;
+  final VoidCallback onContinuar;
+  final VoidCallback? onSalir;
+
+  const DialogoFinManoEquipos({
+    super.key,
+    required this.gano,
+    required this.huboChico,
+    required this.finPartida,
+    required this.piedrasSumadas,
+    required this.chicosYo,
+    required this.chicosRival,
+    required this.ganadorEsYo,
+    required this.onContinuar,
+    this.onSalir,
+  });
+
+  Widget _garbanzo() {
+    return Container(
+      width: 16,
+      height: 13,
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9A24A),
+        border: Border.all(color: const Color(0xFF7A5A28), width: 1.5),
+        borderRadius: BorderRadius.circular(7),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: huboChico ? const Color(0xFFC8870F) : const Color(0xFF8A6A35),
+            width: huboChico ? 3 : 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (finPartida)
+              ..._contenidoPartida()
+            else if (huboChico)
+              ..._contenidoChico()
+            else
+              ..._contenidoMano(),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: onContinuar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                ),
+                child: Text(
+                  finPartida
+                      ? 'Nueva partida'
+                      : (huboChico ? 'Empezar nuevo chico' : 'Jugar otra mano'),
+                  style: const TextStyle(
+                    color: Color(0xFF3A2B12),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+            if (onSalir != null) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: onSalir,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0x33000000),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1),
+                  ),
+                  child: const Text(
+                    'Salir al menú',
+                    style: TextStyle(
+                      color: Color(0xFF3A2B12),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _contenidoMano() {
+    return [
+      Text(
+        gano ? '¡TU EQUIPO GANA LA MANO!' : 'EL EQUIPO RIVAL GANA LA MANO',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF3A2B12),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x808A6A35)),
+      const SizedBox(height: 14),
+      Text(
+        gano ? 'Tu equipo suma' : 'El equipo rival suma',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 6,
+        alignment: WrapAlignment.center,
+        children: List.generate(piedrasSumadas.clamp(0, 12), (_) => _garbanzo()),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        '$piedrasSumadas piedras',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoChico() {
+    return [
+      const Text(
+        '★ ★ ★',
+        style: TextStyle(
+          fontSize: 13,
+          color: Color(0xFF995C0A),
+          letterSpacing: 3,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 2),
+      const Text(
+        '¡CHICO!',
+        style: TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 2,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        ganadorEsYo
+            ? 'Tu equipo se lleva el chico'
+            : 'El equipo rival se lleva el chico',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x80C8870F)),
+      const SizedBox(height: 14),
+      const Text(
+        'Chicos ganados',
+        style: TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 8),
+      const Text('🏆', style: TextStyle(fontSize: 26)),
+      const SizedBox(height: 6),
+      Text(
+        'Tu equipo $chicosYo  ·  Rival $chicosRival',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoPartida() {
+    return [
+      const Text('🏅', style: TextStyle(fontSize: 38)),
+      const SizedBox(height: 6),
+      Text(
+        ganadorEsYo ? '¡GANÁIS LA PARTIDA!' : 'EL EQUIPO RIVAL GANA LA PARTIDA',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Tu equipo $chicosYo  ·  Rival $chicosRival',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+    ];
   }
 }
