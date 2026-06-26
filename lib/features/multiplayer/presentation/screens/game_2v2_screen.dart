@@ -15,6 +15,7 @@ import '../../../../core/settings/music_controller.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
+import '../widgets/widgets_mesa.dart';
 
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
@@ -791,15 +792,21 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   Widget _barraSuperior() {
+    final misPiedras = _miEquipo() == 0 ? _piedrasEquipo0 : _piedrasEquipo1;
+    final piedrasRival = _miEquipo() == 0 ? _piedrasEquipo1 : _piedrasEquipo0;
+    final misChicos = _miEquipo() == 0 ? _chicosEquipo0 : _chicosEquipo1;
+    final chicosRival = _miEquipo() == 0 ? _chicosEquipo1 : _chicosEquipo0;
+    final misBazas = _miEquipo() == 0 ? _manosEquipo0 : _manosEquipo1;
+    final bazasRival = _miEquipo() == 0 ? _manosEquipo1 : _manosEquipo0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              width: 38,
-              height: 38,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: Colors.black38,
                 borderRadius: BorderRadius.circular(8),
@@ -807,61 +814,102 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
               child: const Icon(Icons.chevron_left, color: Colors.white),
             ),
           ),
+          const SizedBox(width: 6),
+          // NOSOTROS (azul)
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: _panelMarcador(
+              titulo: 'NOSOTROS',
+              piedras: misPiedras,
+              bazas: misBazas,
+              colorTop: const Color(0xFF2E78C9),
+              colorBottom: const Color(0xFF154A82),
+              colorTitulo: const Color(0xFFE6F1FB),
+              colorPiedras: const Color(0xFFCFE3F7),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // chicos (negro)
+          Container(
+            width: 54,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF2A2A2A), Color(0xFF111111)],
+              ),
+              border: Border.all(color: Colors.white12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
               children: [
-                _marcadorEquipo('NOSOTROS', _miEquipo(), Colors.lightBlueAccent),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Column(
-                    children: [
-                      const Text('Triunfo',
-                          style: TextStyle(color: Colors.white60, fontSize: 10)),
-                      Text(_vira.suit.displayName,
-                          style: const TextStyle(
-                              color: Colors.amber,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ],
-                  ),
-                ),
-                _marcadorEquipo('ELLOS', 1 - _miEquipo(), Colors.redAccent),
+                Text('$misChicos - $chicosRival',
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 2),
+                const Text('chicos',
+                    style: TextStyle(fontSize: 8, color: Color(0xFFB4B2A9))),
               ],
             ),
           ),
-          const SizedBox(width: 38),
+          const SizedBox(width: 6),
+          // ELLOS (rojo)
+          Expanded(
+            child: _panelMarcador(
+              titulo: 'ELLOS',
+              piedras: piedrasRival,
+              bazas: bazasRival,
+              colorTop: const Color(0xFFC24747),
+              colorBottom: const Color(0xFF8F2424),
+              colorTitulo: const Color(0xFFFCEBEB),
+              colorPiedras: const Color(0xFFF7C1C1),
+            ),
+          ),
+          const SizedBox(width: 6),
         ],
       ),
     );
   }
 
-  Widget _marcadorEquipo(String titulo, int equipo, Color color) {
-    final chicos = equipo == 0 ? _chicosEquipo0 : _chicosEquipo1;
-    final piedras = equipo == 0 ? _piedrasEquipo0 : _piedrasEquipo1;
-    final bazas = equipo == 0 ? _manosEquipo0 : _manosEquipo1;
-    return Column(
-      children: [
-        Text(titulo,
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-        // Chicos y piedras (el marcador real del Envite)
-        Text('$chicos chico${chicos == 1 ? "" : "s"}',
-            style: const TextStyle(color: Colors.white70, fontSize: 10)),
-        Text('$piedras',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-        const Text('piedras',
-            style: TextStyle(color: Colors.white54, fontSize: 9)),
-        // Bazas de la mano actual
-        Text('bazas: $bazas',
-            style: const TextStyle(color: Colors.amber, fontSize: 10)),
-      ],
+  Widget _panelMarcador({
+    required String titulo,
+    required int piedras,
+    required int bazas,
+    required Color colorTop,
+    required Color colorBottom,
+    required Color colorTitulo,
+    required Color colorPiedras,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [colorTop, colorBottom],
+        ),
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      child: Column(
+        children: [
+          Text(titulo, style: TextStyle(fontSize: 11, color: colorTitulo)),
+          const SizedBox(height: 6),
+          Garbanzos(piedras: piedras, color: const Color(0xFFE3C28A)),
+          const SizedBox(height: 6),
+          Text('$piedras piedras',
+              style: TextStyle(fontSize: 9, color: colorPiedras)),
+          const SizedBox(height: 2),
+          Text('bazas: $bazas',
+              style: TextStyle(fontSize: 9, color: colorPiedras)),
+        ],
+      ),
     );
   }
 
-  // Compañero arriba: cartas boca abajo en mini.
-  // Número de cartas que tiene un asiento (en red usa lo recibido).
+  // Numero de cartas que tiene un asiento (en red usa lo recibido).
   int _cartasDe(int asiento) {
     if (_enRed && !_soyAnfitrion) {
       if (asiento < _numCartasPorAsiento.length) {
