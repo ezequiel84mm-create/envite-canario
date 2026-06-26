@@ -45,9 +45,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // ¿Soy el anfitrión? (en modo local, sí por defecto)
   bool get _soyAnfitrion => widget.conexion?.soyAnfitrion ?? true;
 
-  // Jugadores en orden de POSICIÓN en la mesa desde la perspectiva local:
-  // _ordenMesa[0] = yo (abajo), [1] = siguiente, etc. Vacío en modo local.
-  List<JugadorPartida> _ordenMesa = [];
   List<CardModel> _miManoRed = []; // mano del invitado recibida por red
   List<int> _numCartasPorAsiento = []; // cuántas cartas tiene cada asiento
 
@@ -57,7 +54,6 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     MusicController.instance.pausar();
     if (widget.config != null) {
       _numJug = widget.config!.numJugadores;
-      _calcularOrdenMesa();
     }
     if (_enRed) {
       _configurarRed();
@@ -169,26 +165,16 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     });
   }
 
-  // Ordena los jugadores empezando por el local, dando la vuelta a la mesa.
-  void _calcularOrdenMesa() {
-    final cfg = widget.config!;
-    final lista = List<JugadorPartida>.from(cfg.jugadores);
-    // Buscar mi índice en la lista (por idLocal).
-    int miIndice = lista.indexWhere((j) => j.id == cfg.idLocal);
-    if (miIndice < 0) miIndice = 0; // por si acaso
-    // Rotar para que yo quede primero.
-    _ordenMesa = [
-      ...lista.sublist(miIndice),
-      ...lista.sublist(0, miIndice),
-    ];
-  }
 
-  // Nombre del jugador que ocupa una POSICIÓN de la mesa (0=yo, 1, 2...).
-  String _nombrePosicion(int posicion) {
-    if (_ordenMesa.isNotEmpty && posicion < _ordenMesa.length) {
-      return _ordenMesa[posicion].nombre;
+  // Nombre del jugador en un ASIENTO ABSOLUTO (el que viene en el estado).
+  String _nombrePosicion(int asiento) {
+    final cfg = widget.config;
+    if (cfg != null) {
+      if (asiento < cfg.jugadores.length) {
+        return cfg.jugadores[asiento].nombre;
+      }
     }
-    return _nombreAsiento(posicion); // modo local: etiquetas
+    return _nombreAsiento(asiento); // modo local: etiquetas
   }
 
   @override
@@ -355,6 +341,16 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
   // Carta jugada por un asiento en la baza actual (o null si no ha jugado).
+  // Mi asiento absoluto (0 si soy anfitrión o modo local).
+  int get _miAsientoBase =>
+      (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+
+  // Asiento absoluto que se dibuja en una POSICIÓN visual.
+  // posición 0 = abajo (yo), 1 = izq, 2 = arriba, 3 = der.
+  int _asientoEnPos(int posicion) {
+    return (_miAsientoBase + posicion) % _numJug;
+  }
+
   CardModel? _cartaEnMesaDe(int asiento) {
     for (final j in _baza) {
       if (j.asiento == asiento) return j.carta;
@@ -394,15 +390,15 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 _barraSuperior(),
 
                 // Compañero (arriba)
-                _jugadorRival(asiento: 2, etiqueta: _nombrePosicion(2), esCompanero: true),
+                _jugadorRival(asiento: _asientoEnPos(2), etiqueta: _nombrePosicion(_asientoEnPos(2)), esCompanero: true),
 
                 // Zona central: rivales a los lados + cartas jugadas
                 Expanded(
                   child: Row(
                     children: [
-                      _jugadorRivalLateral(asiento: 1, etiqueta: _nombrePosicion(1)),
+                      _jugadorRivalLateral(asiento: _asientoEnPos(1), etiqueta: _nombrePosicion(_asientoEnPos(1))),
                       Expanded(child: _zonaCentral()),
-                      _jugadorRivalLateral(asiento: 3, etiqueta: _nombrePosicion(3)),
+                      _jugadorRivalLateral(asiento: _asientoEnPos(3), etiqueta: _nombrePosicion(_asientoEnPos(3))),
                     ],
                   ),
                 ),
@@ -616,14 +612,18 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Compañero (arriba)
-        Align(alignment: Alignment.topCenter, child: _cartaJugadaMini(2)),
-        // Rival izq
-        Align(alignment: Alignment.centerLeft, child: _cartaJugadaMini(1)),
-        // Rival der
-        Align(alignment: Alignment.centerRight, child: _cartaJugadaMini(3)),
-        // Tú (abajo)
-        Align(alignment: Alignment.bottomCenter, child: _cartaJugadaMini(0)),
+        // Compañero (arriba) = posición 2
+        Align(alignment: Alignment.topCenter,
+            child: _cartaJugadaMini(_asientoEnPos(2))),
+        // Rival izq = posición 1
+        Align(alignment: Alignment.centerLeft,
+            child: _cartaJugadaMini(_asientoEnPos(1))),
+        // Rival der = posición 3
+        Align(alignment: Alignment.centerRight,
+            child: _cartaJugadaMini(_asientoEnPos(3))),
+        // Tú (abajo) = posición 0
+        Align(alignment: Alignment.bottomCenter,
+            child: _cartaJugadaMini(_asientoEnPos(0))),
       ],
     );
   }
