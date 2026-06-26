@@ -5,6 +5,7 @@ import '../../../sala/network/mensajes_sala.dart';
 import '../../network/mensajes_red.dart';
 import '../../network/traductor_cartas.dart';
 import '../../../../core/enums/suit.dart';
+import '../../../../core/enums/card_value.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
@@ -25,9 +26,11 @@ class Game2v2Screen extends StatefulWidget {
 }
 
 class _Game2v2ScreenState extends State<Game2v2Screen> {
-  late List<List<CardModel>> _manos;
-  late Suit _paloVirado;
-  late CardModel _vira;
+  // Inicializadas con valores neutros: el invitado las dibuja vacías
+  // hasta recibir el estado real del anfitrión.
+  List<List<CardModel>> _manos = [];
+  Suit _paloVirado = Suit.oros;
+  CardModel _vira = const CardModel(suit: Suit.oros, value: CardValue.uno);
 
   List<CartaJugada2v2> _baza = [];
   int _turno = 0;
