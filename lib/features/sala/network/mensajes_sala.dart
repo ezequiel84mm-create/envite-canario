@@ -16,4 +16,14 @@ class TipoMensajeSala {
 
   // ANFITRIÓN -> UN invitado: "tu id en la sala es X".
   static const String tuId = 'SALA_TU_ID';
+
+  // ===== Mensajes de la PARTIDA (ya en juego) =====
+  // ANFITRIÓN -> TODOS: estado común de la partida (baza, turno, marcador).
+  static const String estadoJuego = 'JUEGO_ESTADO';
+
+  // ANFITRIÓN -> UN invitado: su mano personal de cartas.
+  static const String miMano = 'JUEGO_MI_MANO';
+
+  // INVITADO -> ANFITRIÓN: "juego esta carta".
+  static const String jugarCarta = 'JUEGO_JUGAR_CARTA';
 }
