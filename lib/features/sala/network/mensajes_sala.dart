@@ -32,4 +32,6 @@ class TipoMensajeSala {
 
   // INVITADO -> ANFITRIÓN: respuesta al envite (juego/paso).
   static const String respuestaEnvite = 'JUEGO_RESPUESTA_ENVITE';
+  // INVITADO -> ANFITRIÓN: decisión de tumbo por equipo (jugar/retirarse).
+  static const String decisionTumbo = 'JUEGO_DEC_TUMBO';
 }

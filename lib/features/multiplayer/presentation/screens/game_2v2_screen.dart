@@ -46,6 +46,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
+  // ===== Tumbo por equipo =====
+  bool _manoEsDeTumbo = false;
+  int _equipoDecideTumbo = -1; // -1=sin tumbo/forzoso, 0=eq0 decide, 1=eq1
   String _mensaje = '';
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
@@ -136,6 +139,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'chicosEquipo0': _chicosEquipo0,
       'chicosEquipo1': _chicosEquipo1,
       'nivelApuesta': _nivelApuesta,
+      'manoEsDeTumbo': _manoEsDeTumbo,
+      'equipoDecideTumbo': _equipoDecideTumbo,
       'enviteCantado': _enviteCantado,
       'equipoCanto': _equipoCanto,
       'nivelPropuesto': _nivelPropuesto,
@@ -187,6 +192,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _chicosEquipo0 = d['chicosEquipo0'] ?? 0;
       _chicosEquipo1 = d['chicosEquipo1'] ?? 0;
       _nivelApuesta = d['nivelApuesta'] ?? 0;
+      _manoEsDeTumbo = d['manoEsDeTumbo'] ?? false;
+      _equipoDecideTumbo = d['equipoDecideTumbo'] ?? -1;
       _enviteCantado = d['enviteCantado'] ?? false;
       _equipoCanto = d['equipoCanto'] ?? -1;
       _nivelPropuesto = d['nivelPropuesto'] ?? 0;
@@ -218,7 +225,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // ===== ENVITE =====
   // ¿Puede el equipo local cantar/subir ahora?
   bool get _puedoCantar {
-    if (_rondaTerminada || _nivelApuesta >= 4 && !_enviteCantado) return false;
+    if (_rondaTerminada || _equipoDecideTumbo != -1) return false;
+    if (_nivelApuesta >= 4 && !_enviteCantado) return false;
     final miEquipo = _miEquipo();
     if (_enviteCantado) {
       // Hay envite pendiente: solo puede SUBIR el equipo contrario al que cantó.
@@ -316,7 +324,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // Suma las piedras de la mano al equipo ganador y comprueba el chico.
   void _finalizarRondaEquipos() {
     final valores = [2, 4, 7, 9, 12];
-    final valorMano = valores[_nivelApuesta];
+    final valorMano = _manoEsDeTumbo ? 3 : valores[_nivelApuesta];
     final gana0 = _manosEquipo0 > _manosEquipo1;
     if (gana0) {
       _piedrasEquipo0 += valorMano;
@@ -358,6 +366,48 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     return 'Turno de ${_nombrePosicion(_turno)}';
   }
 
+  void _decidirTumboEquipo(bool juega) {
+    if (_soyAnfitrion) {
+      _anfitrionResuelveTumboEquipo(juega);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.decisionTumbo, {'juega': juega}).codificar());
+    }
+  }
+
+  void _anfitrionResuelveTumboEquipo(bool juega) {
+    if (_equipoDecideTumbo == -1) return;
+    final quien = _equipoDecideTumbo;
+    if (juega) {
+      _manoEsDeTumbo = true;
+      _equipoDecideTumbo = -1;
+      final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
+      _mensaje = '$nombre juega el tumbo (vale 3)';
+    } else {
+      final rival = quien == 0 ? 1 : 0;
+      if (rival == 0) {
+        _piedrasEquipo0 += 1;
+      } else {
+        _piedrasEquipo1 += 1;
+      }
+      _equipoDecideTumbo = -1;
+      final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
+      _mensaje = '$nombre se retira. Rival +1 piedra.';
+      if (_piedrasEquipo0 >= 12) {
+        _chicosEquipo0++;
+        _piedrasEquipo0 = 0;
+        _piedrasEquipo1 = 0;
+      } else if (_piedrasEquipo1 >= 12) {
+        _chicosEquipo1++;
+        _piedrasEquipo0 = 0;
+        _piedrasEquipo1 = 0;
+      }
+    }
+    setState(() {});
+    _enviarEstadoJuego();
+    if (!juega) Future.delayed(const Duration(seconds: 2), _repartirNuevaRonda);
+  }
+
   void _repartirNuevaRonda() {
     // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
@@ -369,17 +419,33 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _enviteCantado = false;
     _equipoCanto = -1;
     _nivelPropuesto = 0;
+    _manoEsDeTumbo = false;
+    _equipoDecideTumbo = -1;
     _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
     _rondaTerminada = false;
     _mensaje = _mensajeTurno();
+    // Tumbo: comprobar si algún equipo tiene exactamente 11 piedras.
+    final eq0EnTumbo = _piedrasEquipo0 == 11;
+    final eq1EnTumbo = _piedrasEquipo1 == 11;
+    if (eq0EnTumbo && eq1EnTumbo) {
+      _manoEsDeTumbo = true;
+      _mensaje = '🔥 ¡Tumbo forzoso! Los dos equipos a 11.';
+    } else if (eq0EnTumbo) {
+      _equipoDecideTumbo = 0;
+      _mensaje = '🔥 Equipo A a 11 piedras. ¿Juegan el tumbo?';
+    } else if (eq1EnTumbo) {
+      _equipoDecideTumbo = 1;
+      _mensaje = '🔥 Equipo B a 11 piedras. ¿Juegan el tumbo?';
+    }
     setState(() {});
     _continuarSiTocaIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
   }
 
   List<CardModel> _validasDe(int asiento) {
+    if (_equipoDecideTumbo != -1) return [];
     // En red, el invitado calcula sus válidas sobre su mano recibida.
     final List<CardModel> mano;
     if (_enRed && !_soyAnfitrion) {
@@ -598,6 +664,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                   ),
                 ),
 
+                // Tumbo pendiente
+                _botonesTumbo(),
                 // Botones del envite (cantar/subir/responder)
                 _botonesEnvite(),
                 // Tus cartas (abajo, en abanico)
@@ -859,6 +927,41 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     const nombres = ['Base', 'Envido', 'Siete', 'Nueve', 'Chico fuera'];
     if (nivel >= 0 && nivel < nombres.length) return nombres[nivel];
     return '';
+  }
+
+  Widget _botonesTumbo() {
+    if (_equipoDecideTumbo == -1) return const SizedBox.shrink();
+    final miEquipo = _miEquipo();
+    if (miEquipo == _equipoDecideTumbo) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () => _decidirTumboEquipo(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('🔥 JUGAR TUMBO (3)',
+                  style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () => _decidirTumboEquipo(false),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+              child: const Text('RETIRARME',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '🔥 El equipo rival decide el tumbo...',
+        style: const TextStyle(color: Colors.orange, fontStyle: FontStyle.italic),
+      ),
+    );
   }
 
   // Fila de botones del envite según el estado.
