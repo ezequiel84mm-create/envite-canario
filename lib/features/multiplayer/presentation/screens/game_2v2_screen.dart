@@ -32,14 +32,41 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
 
+  // Jugadores en orden de POSICIÓN en la mesa desde la perspectiva local:
+  // _ordenMesa[0] = yo (abajo), [1] = siguiente, etc. Vacío en modo local.
+  List<JugadorPartida> _ordenMesa = [];
+
   @override
   void initState() {
     super.initState();
     MusicController.instance.pausar();
     if (widget.config != null) {
       _numJug = widget.config!.numJugadores;
+      _calcularOrdenMesa();
     }
     _repartirNuevaRonda();
+  }
+
+  // Ordena los jugadores empezando por el local, dando la vuelta a la mesa.
+  void _calcularOrdenMesa() {
+    final cfg = widget.config!;
+    final lista = List<JugadorPartida>.from(cfg.jugadores);
+    // Buscar mi índice en la lista (por idLocal).
+    int miIndice = lista.indexWhere((j) => j.id == cfg.idLocal);
+    if (miIndice < 0) miIndice = 0; // por si acaso
+    // Rotar para que yo quede primero.
+    _ordenMesa = [
+      ...lista.sublist(miIndice),
+      ...lista.sublist(0, miIndice),
+    ];
+  }
+
+  // Nombre del jugador que ocupa una POSICIÓN de la mesa (0=yo, 1, 2...).
+  String _nombrePosicion(int posicion) {
+    if (_ordenMesa.isNotEmpty && posicion < _ordenMesa.length) {
+      return _ordenMesa[posicion].nombre;
+    }
+    return _nombreAsiento(posicion); // modo local: etiquetas
   }
 
   @override
@@ -125,7 +152,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     } else {
       _manosEquipo1++;
     }
-    _mensaje = '${_nombreAsiento(ganador.asiento)} gana la mano';
+    _mensaje = '${_nombrePosicion(ganador.asiento)} gana la mano';
     _turno = ganador.asiento;
 
     setState(() {});
@@ -203,15 +230,15 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                 _barraSuperior(),
 
                 // Compañero (arriba)
-                _jugadorRival(asiento: 2, etiqueta: 'Compañero', esCompanero: true),
+                _jugadorRival(asiento: 2, etiqueta: _nombrePosicion(2), esCompanero: true),
 
                 // Zona central: rivales a los lados + cartas jugadas
                 Expanded(
                   child: Row(
                     children: [
-                      _jugadorRivalLateral(asiento: 1, etiqueta: 'Rival'),
+                      _jugadorRivalLateral(asiento: 1, etiqueta: _nombrePosicion(1)),
                       Expanded(child: _zonaCentral()),
-                      _jugadorRivalLateral(asiento: 3, etiqueta: 'Rival'),
+                      _jugadorRivalLateral(asiento: 3, etiqueta: _nombrePosicion(3)),
                     ],
                   ),
                 ),
