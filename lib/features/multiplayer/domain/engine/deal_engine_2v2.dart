@@ -37,25 +37,27 @@ class DealEngine2v2 {
   /// Da 3 cartas a cada uno de los 4 jugadores y voltea la siguiente
   /// carta como vira (triunfo).
   static Reparto2v2 repartir() {
+    return repartirPara(numJugadores);
+  }
+
+  /// Reparte para [n] jugadores (4, 6 u 8 en el modo sala).
+  /// Da 3 cartas a cada uno y voltea la vira.
+  static Reparto2v2 repartirPara(int n) {
     final mazo = DeckGenerator.generateShuffledDeck();
 
-    // Preparar una lista de manos vacías, una por asiento.
-    final manos = List.generate(numJugadores, (_) => <CardModel>[]);
+    final manos = List.generate(n, (_) => <CardModel>[]);
 
     int indice = 0;
-    // Repartir 3 cartas a cada jugador.
     for (int ronda = 0; ronda < cartasPorJugador; ronda++) {
-      for (int asiento = 0; asiento < numJugadores; asiento++) {
+      for (int asiento = 0; asiento < n; asiento++) {
         manos[asiento].add(mazo[indice]);
         indice++;
       }
     }
 
-    // La siguiente carta es la vira.
     final vira = mazo[indice];
     indice++;
 
-    // El resto queda en el mazo.
     final resto = mazo.sublist(indice);
 
     return Reparto2v2(manos: manos, vira: vira, resto: resto);
