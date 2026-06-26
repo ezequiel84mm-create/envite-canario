@@ -36,6 +36,11 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   int _turno = 0;
   int _manosEquipo0 = 0;
   int _manosEquipo1 = 0;
+  // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
+  int _piedrasEquipo0 = 0;
+  int _piedrasEquipo1 = 0;
+  int _chicosEquipo0 = 0;
+  int _chicosEquipo1 = 0;
   String _mensaje = '';
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
@@ -116,6 +121,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       'turno': _turno,
       'manosEquipo0': _manosEquipo0,
       'manosEquipo1': _manosEquipo1,
+      'piedrasEquipo0': _piedrasEquipo0,
+      'piedrasEquipo1': _piedrasEquipo1,
+      'chicosEquipo0': _chicosEquipo0,
+      'chicosEquipo1': _chicosEquipo1,
       'rondaTerminada': _rondaTerminada,
       'mensaje': _mensaje,
       'numCartas': _manos.map((m) => m.length).toList(),
@@ -159,6 +168,10 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       _turno = d['turno'] ?? 0;
       _manosEquipo0 = d['manosEquipo0'] ?? 0;
       _manosEquipo1 = d['manosEquipo1'] ?? 0;
+      _piedrasEquipo0 = d['piedrasEquipo0'] ?? 0;
+      _piedrasEquipo1 = d['piedrasEquipo1'] ?? 0;
+      _chicosEquipo0 = d['chicosEquipo0'] ?? 0;
+      _chicosEquipo1 = d['chicosEquipo1'] ?? 0;
       _rondaTerminada = d['rondaTerminada'] ?? false;
       _mensaje = d['mensaje'] ?? '';
       _numCartasPorAsiento =
@@ -182,6 +195,44 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   void dispose() {
     MusicController.instance.reanudar();
     super.dispose();
+  }
+
+  // Suma las piedras de la mano al equipo ganador y comprueba el chico.
+  void _finalizarRondaEquipos() {
+    // De momento, nivel Base = 2 piedras (el envite vendrá después).
+    const valorMano = 2;
+    final gana0 = _manosEquipo0 > _manosEquipo1;
+    if (gana0) {
+      _piedrasEquipo0 += valorMano;
+    } else {
+      _piedrasEquipo1 += valorMano;
+    }
+    // Comprobar chico (12 piedras) y fin de partida (2 chicos).
+    if (_piedrasEquipo0 >= 12) {
+      _chicosEquipo0++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+    } else if (_piedrasEquipo1 >= 12) {
+      _chicosEquipo1++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+    }
+    final miEquipo = _miEquipo();
+    final ganadorEquipo = gana0 ? 0 : 1;
+    _mensaje = (ganadorEquipo == miEquipo)
+        ? '¡Tu equipo gana la mano! (+$valorMano)'
+        : 'El equipo rival gana la mano (+$valorMano)';
+  }
+
+  // El equipo del jugador local (0 o 1).
+  int _miEquipo() {
+    final cfg = widget.config;
+    if (cfg == null) return 0;
+    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    if (miAsiento < cfg.jugadores.length) {
+      return cfg.jugadores[miAsiento].equipo;
+    }
+    return miAsiento % 2;
   }
 
   // Mensaje del turno actual, según quién soy yo.
@@ -320,9 +371,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       if (cartasRestantes == 0) {
         _rondaTerminada = true;
         _barajador = (_barajador + 1) % _numJug; // rota para la próxima mano
-        _mensaje = _manosEquipo0 > _manosEquipo1
-            ? '¡TU EQUIPO gana la ronda! ($_manosEquipo0 - $_manosEquipo1)'
-            : 'Equipo rival gana la ronda ($_manosEquipo0 - $_manosEquipo1)';
+        _finalizarRondaEquipos();
       }
       setState(() {});
       if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
@@ -476,7 +525,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _marcadorEquipo('NOSOTROS', _manosEquipo0, Colors.lightBlueAccent),
+                _marcadorEquipo('NOSOTROS', _miEquipo(), Colors.lightBlueAccent),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Column(
@@ -491,7 +540,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
                     ],
                   ),
                 ),
-                _marcadorEquipo('ELLOS', _manosEquipo1, Colors.redAccent),
+                _marcadorEquipo('ELLOS', 1 - _miEquipo(), Colors.redAccent),
               ],
             ),
           ),
@@ -501,15 +550,26 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     );
   }
 
-  Widget _marcadorEquipo(String titulo, int valor, Color color) {
+  Widget _marcadorEquipo(String titulo, int equipo, Color color) {
+    final chicos = equipo == 0 ? _chicosEquipo0 : _chicosEquipo1;
+    final piedras = equipo == 0 ? _piedrasEquipo0 : _piedrasEquipo1;
+    final bazas = equipo == 0 ? _manosEquipo0 : _manosEquipo1;
     return Column(
       children: [
         Text(titulo,
             style: TextStyle(
                 color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-        Text('$valor',
+        // Chicos y piedras (el marcador real del Envite)
+        Text('$chicos chico${chicos == 1 ? "" : "s"}',
+            style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        Text('$piedras',
             style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+        const Text('piedras',
+            style: TextStyle(color: Colors.white54, fontSize: 9)),
+        // Bazas de la mano actual
+        Text('bazas: $bazas',
+            style: const TextStyle(color: Colors.amber, fontSize: 10)),
       ],
     );
   }
