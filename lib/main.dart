@@ -17,18 +17,6 @@ import 'features/game/presentation/widgets/card_widget.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppSettings.instance.cargar();
-  ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
-      color: const Color(0xFF300000),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Text(
-          'ERROR: ' + details.exception.toString() + '\n\n' + details.stack.toString(),
-          style: const TextStyle(color: Colors.white, fontSize: 11),
-        ),
-      ),
-    );
-  };
   runApp(const EnviteApp());
 }
 
