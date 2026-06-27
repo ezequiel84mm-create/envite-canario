@@ -503,26 +503,12 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _turnoApuesta = aceptante; // solo el que acepto puede subir
       _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
-      // Rechazar: el que canto gana las piedras del nivel anterior.
-      final valores = [2, 4, 7, 9, 12];
-      final nivelAnterior = _nivelPropuesto - 1; // el que estaba antes de cantar
-      final ganaPiedras = nivelAnterior == 0 ? 1 : valores[nivelAnterior];
-
-      if (_quienCanto == 0) {
-        _piedrasAnfitrion += ganaPiedras;
-      } else {
-        _piedrasInvitado += ganaPiedras;
-      }
+      // NO QUIERO = juega con lo que tenemos: se queda en el ultimo nivel
+      // aceptado (_nivelApuesta sin tocar) y la mano sigue. Se cobra al ganar.
       _enviteCantado = false;
-      final quien = _quienCanto;
       _quienCanto = -1;
-      _mensaje = quien == 0
-          ? 'Pasan. Anfitrión gana $ganaPiedras.'
-          : 'Pasan. Invitado gana $ganaPiedras.';
-      // Tras pasar, la mano del envite termina: nueva ronda.
-      _ganadorDialogoAsiento = quien;
-      _piedrasSumadasDialogo = ganaPiedras;
-      _comprobarChicoYMostrarDialogo();
+      _turnoApuesta = -1;
+      _mensaje = 'Juegan con lo apostado.';
     } else if (accion == 'subir') {
       // Subir: reenvida al siguiente nivel; ahora responde el otro.
       _nivelPropuesto = _nivelPropuesto + 1;
