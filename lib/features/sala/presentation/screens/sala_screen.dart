@@ -184,12 +184,9 @@ class _SalaScreenState extends State<SalaScreen> {
   // El jugador local pide moverse a un asiento (si está libre).
   void _pedirAsiento(int numero) {
     final destino = _sala.asientos[numero];
-    // El anfitrión, si toca una IA, la quita.
-    if (widget.soyAnfitrion && !destino.estaVacio && destino.esIA) {
-      _quitarIA(numero);
-      return;
-    }
-    if (!destino.estaVacio) return; // ocupado por humano, no se puede
+    // Tocar una IA o un humano no hace nada aquí: para quitar IA está su
+    // botón propio. Solo nos movemos a asientos vacíos.
+    if (!destino.estaVacio) return;
     if (widget.soyAnfitrion) {
       // El anfitrión se mueve directo.
       _moverInvitado('anfitrion', numero);
@@ -330,7 +327,7 @@ class _SalaScreenState extends State<SalaScreen> {
                 top: h * (0.10 + i * 0.21),
                 child: GestureDetector(
                   onTap: () => _pedirAsiento(asientosIzq[i]),
-                  child: _fichaAsiento(_sala.asientos[asientosIzq[i]]),
+                  child: _fichaAsientoConBoton(_sala.asientos[asientosIzq[i]]),
                 ),
               ),
             for (int i = 0; i < 4; i++)
@@ -339,7 +336,7 @@ class _SalaScreenState extends State<SalaScreen> {
                 top: h * (0.10 + i * 0.21),
                 child: GestureDetector(
                   onTap: () => _pedirAsiento(asientosDer[i]),
-                  child: _fichaAsiento(_sala.asientos[asientosDer[i]]),
+                  child: _fichaAsientoConBoton(_sala.asientos[asientosDer[i]]),
                 ),
               ),
           ],
@@ -348,8 +345,55 @@ class _SalaScreenState extends State<SalaScreen> {
     );
   }
 
+  // Envuelve la ficha del asiento y, si soy anfitrion, anade un boton
+  // pequeno en la esquina: '+IA' si esta vacio, 'x' si tiene una IA.
+  // El boton consume su propio toque (no dispara el 'sentarme' de fuera).
+  Widget _fichaAsientoConBoton(Asiento asiento) {
+    final ficha = _fichaAsiento(asiento);
+    if (!widget.soyAnfitrion) return ficha;
+    // Solo mostramos boton en asientos vacios o con IA (no humanos).
+    final mostrarBoton = asiento.estaVacio || asiento.esIA;
+    if (!mostrarBoton) return ficha;
+    final esVacio = asiento.estaVacio;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ficha,
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (esVacio) {
+                _ponerIA(asiento.numero);
+              } else {
+                _quitarIA(asiento.numero);
+              }
+            },
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: esVacio
+                    ? const Color(0xFF2E7D32)
+                    : const Color(0xFFB71C1C),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE3C28A), width: 1.5),
+              ),
+              child: Icon(
+                esVacio ? Icons.smart_toy : Icons.close,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _fichaAsiento(Asiento asiento) {
-    final numero = asiento.numero;
     final vacio = asiento.estaVacio;
     final esEquipoA = asiento.equipo == 0;
     final colorEquipo =
@@ -368,25 +412,8 @@ class _SalaScreenState extends State<SalaScreen> {
       ),
       child: Center(
         child: vacio
-            ? (widget.soyAnfitrion
-                ? GestureDetector(
-                    onTap: () => _ponerIA(numero),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.smart_toy,
-                            color: Color(0x88E3C28A), size: 20),
-                        SizedBox(height: 2),
-                        Text('+ IA',
-                            style: TextStyle(
-                                color: Color(0xFFE3C28A),
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )
-                : const Icon(Icons.event_seat,
-                    color: Color(0x88E3C28A), size: 26))
+            ? const Icon(Icons.event_seat,
+                    color: Color(0x88E3C28A), size: 26)
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
