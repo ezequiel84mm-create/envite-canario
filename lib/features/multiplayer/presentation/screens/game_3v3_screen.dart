@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../sala/domain/models/config_partida.dart';
 import '../../../sala/network/conexion_sala.dart';
@@ -51,6 +52,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   // ===== Envite por equipo =====
   int _nivelApuesta = 0;       // 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
   bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
+  final _random33 = Random();
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
   int _equipoTurnoApuesta = -1; // -1=cualquiera puede cantar; si no, solo ese equipo
@@ -321,6 +323,51 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _mensaje = 'Envite cantado. ¡Responde el rival!';
     setState(() {});
     _enviarEstadoJuego();
+    _quizaRespondeIA();
+  }
+
+  // Si el equipo que debe responder es solo IA, decide automaticamente.
+  void _quizaRespondeIA() {
+    if (_enRed && !_soyAnfitrion) return; // solo el cerebro decide
+    if (!_enviteCantado) return;
+    final equipoResponde = _equipoCanto == 0 ? 1 : 0;
+    if (!_equipoEsSoloIA(equipoResponde)) return;
+    Future.delayed(const Duration(milliseconds: 1300), () {
+      if (!mounted || !_enviteCantado) return;
+      final accion = _iaDecideRespuesta(equipoResponde);
+      _anfitrionResuelveRespuesta(accion);
+      if (accion == 'subir') _quizaRespondeIA();
+    });
+  }
+
+  // Todos los jugadores de un equipo son IA?
+  bool _equipoEsSoloIA(int equipo) {
+    final cfg = widget.config;
+    if (cfg == null) return true; // modo local: rival = IA
+    for (final j in cfg.jugadores) {
+      if (_equipoDeAsiento(j.asiento) == equipo && !j.esIA) return false;
+    }
+    return true;
+  }
+
+  // Decision IA: acepta si tiene triunfo o el valor es bajo (<=7).
+  String _iaDecideRespuesta(int equipo) {
+    final valores = [2, 4, 7, 9, 12];
+    final valorProx = valores[_nivelPropuesto];
+    bool tieneTriunfo = false;
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipo) continue;
+      if (_manos[a].any((cc) => cc.suit == _paloVirado)) {
+        tieneTriunfo = true;
+        break;
+      }
+    }
+    final acepta = tieneTriunfo || valorProx <= 7;
+    if (!acepta) return 'paso';
+    if (tieneTriunfo && _nivelPropuesto < 4 && _random33.nextDouble() < 0.25) {
+      return 'subir';
+    }
+    return 'juego';
   }
 
   void _responderEnvite(String accion) {
@@ -359,6 +406,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       }
     }
     setState(() {});
+    if (_enviteCantado) _quizaRespondeIA();
     _enviarEstadoJuego();
   }
 
