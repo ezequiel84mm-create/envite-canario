@@ -285,6 +285,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // ¿Puede el equipo local cantar/subir ahora?
   bool get _puedoCantar {
     if (_rondaTerminada || _equipoDecideTumbo != -1) return false;
+    if (_manoEsDeTumbo) return false; // en tumbo no se canta envite
     if (_enviteCantado) return false;
     if (_nivelApuesta >= 4) return false;
     if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != _miEquipo()) {
