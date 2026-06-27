@@ -692,7 +692,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       jugadas: _baza,
       paloVirado: _paloVirado,
     );
-    final equipoGanador = ganador.asiento % 2;
+    final equipoGanador = _equipoDeAsiento(ganador.asiento);
     if (equipoGanador == 0) {
       _manosEquipo0++;
     } else {
