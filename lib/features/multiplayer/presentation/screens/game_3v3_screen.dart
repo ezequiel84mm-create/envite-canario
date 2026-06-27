@@ -523,7 +523,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _equipoTurnoApuesta = -1;
     _manoEsDeTumbo = false;
     _equipoDecideTumbo = -1;
-    _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
+    _turno = _siguienteEnCirculo(_barajador); // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
     _bazasAsiento = List.filled(_numJug, 0);
@@ -604,7 +604,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     if (_baza.length == _numJug) {
       _resolverBaza();
     } else {
-      _turno = (_turno + 1) % _numJug;
+      _turno = _siguienteEnCirculo(_turno);
       _mensaje = _mensajeTurno();
       _mensajeEsTurno = true;
       setState(() {});
@@ -672,7 +672,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       final hayGanador2Bazas = _manosEquipo0 >= 2 || _manosEquipo1 >= 2;
       if (hayGanador2Bazas || cartasRestantes == 0) {
         _rondaTerminada = true;
-        _barajador = (_barajador + 1) % _numJug; // rota para la próxima mano
+        _barajador = _siguienteEnCirculo(_barajador); // rota para la próxima mano
         _finalizarRondaEquipos();
       }
       setState(() {});
@@ -709,7 +709,31 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   // Asiento absoluto que se dibuja en una POSICIÓN visual.
   // posición 0 = abajo (yo), 1 = izq, 2 = arriba, 3 = der.
+  // Orden de los asientos alrededor de la mesa (círculo), empezando por
+  // cualquiera y girando. Para 6 jugadores: 0,1,3,2,4,5.
+  // pos 0 = yo (abajo), y girando: izq-abajo, izq-arriba, arriba,
+  // der-arriba, der-abajo.
+  static const List<int> _ordenCircular6 = [0, 1, 3, 2, 4, 5];
+
+  // Siguiente asiento en el orden de juego (círculo de la mesa).
+  int _siguienteEnCirculo(int asiento) {
+    if (_numJug != 6) return (asiento + 1) % _numJug;
+    final idx = _ordenCircular6.indexOf(asiento);
+    if (idx == -1) return (asiento + 1) % _numJug;
+    return _ordenCircular6[(idx + 1) % 6];
+  }
+
   int _asientoEnPos(int posicion) {
+    if (_numJug == 6) {
+      // Localizo mi asiento dentro del orden circular y avanzo 'posicion'.
+      final miIdx = _ordenCircular6.indexOf(_miAsientoBase);
+      if (miIdx == -1) {
+        return (_miAsientoBase + posicion) % _numJug; // fallback
+      }
+      final idx = (miIdx + posicion) % 6;
+      return _ordenCircular6[idx];
+    }
+    // Otros tamaños: rotación lineal simple.
     return (_miAsientoBase + posicion) % _numJug;
   }
 
