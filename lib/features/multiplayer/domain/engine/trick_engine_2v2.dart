@@ -46,11 +46,14 @@ class TrickEngine2v2 {
       return mano;
     }
 
-    // No es arrastre de triunfo. Prioridad 1: asistir al palo de salida.
+    // Sale un palo. Las cartas validas son el palo de salida MAS los
+    // triunfos (palo virado); el jugador elige libremente entre ellos.
     final delPaloInicial =
         mano.where((c) => c.suit == paloInicialBaza).toList();
     if (delPaloInicial.isNotEmpty) {
-      return delPaloInicial;
+      final triunfos = mano.where((c) => c.suit == paloVirado).toList();
+      final set = <CardModel>{...delPaloInicial, ...triunfos};
+      return set.toList();
     }
     // No tengo el palo de salida. Si mi EQUIPO ya va ganando la baza,
     // puedo tirar lo que quiera (jugar mal, sin montar triunfo).

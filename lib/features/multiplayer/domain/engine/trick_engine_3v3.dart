@@ -147,11 +147,19 @@ class TrickEngine3v3 {
       return mano;
     }
 
-    // Palo normal de salida. Prioridad 1: asistir al palo.
+    // Sale un palo que NO es triunfo. Las cartas validas son:
+    //   palo de salida  +  triunfos (palo virado)  +  fijas.
+    // El jugador elige libremente entre todas ellas.
     final delPaloInicial =
         mano.where((c) => c.suit == paloInicialBaza && !esFija(c)).toList();
     if (delPaloInicial.isNotEmpty) {
-      return delPaloInicial;
+      final triunfosYFijas = mano.where((c) {
+        if (esFija(c)) return true;
+        if (c.suit == paloVirado) return true;
+        return false;
+      }).toList();
+      final set = <CardModel>{...delPaloInicial, ...triunfosYFijas};
+      return set.toList();
     }
 
     // No tengo el palo de salida.
