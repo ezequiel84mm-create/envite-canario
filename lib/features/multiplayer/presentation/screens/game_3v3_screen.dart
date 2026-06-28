@@ -614,6 +614,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       paloVirado: _paloVirado,
       baza: _baza,
       asiento: asiento,
+      equipoDe: _equipoDeAsiento,
     );
   }
 

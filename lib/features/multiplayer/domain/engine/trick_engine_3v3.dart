@@ -121,6 +121,7 @@ class TrickEngine3v3 {
     required Suit paloVirado,
     List<CartaJugada2v2> baza = const [],
     int asiento = -1,
+    int Function(int)? equipoDe,
   }) {
     if (paloInicialBaza == null) {
       return mano;
@@ -170,7 +171,8 @@ class TrickEngine3v3 {
     if (asiento >= 0 &&
         baza.isNotEmpty &&
         _miEquipoVaGanando(
-            baza: baza, asiento: asiento, paloVirado: paloVirado)) {
+            baza: baza, asiento: asiento, paloVirado: paloVirado,
+            equipoDe: equipoDe)) {
       return mano; // mi equipo ya gana: puedo tirar libre
     }
 
@@ -213,6 +215,7 @@ class TrickEngine3v3 {
     required List<CartaJugada2v2> baza,
     required int asiento,
     required Suit paloVirado,
+    int Function(int)? equipoDe,
   }) {
     if (baza.isEmpty) return false;
     final paloInicial = baza.first.carta.suit;
@@ -222,8 +225,9 @@ class TrickEngine3v3 {
           _puntuacion(lider.carta, paloVirado, paloInicial);
       if (mejor) lider = j;
     }
-    // Equipos en 3v3: asientos pares {0,2,4} vs impares {1,3,5}.
-    return (lider.asiento % 2) == (asiento % 2);
+    // Equipos reales si se proporcionan; si no, paridad como fallback.
+    final eq = equipoDe ?? (int a) => a % 2;
+    return eq(lider.asiento) == eq(asiento);
   }
 
   /// Determina quién gana la baza completa.
