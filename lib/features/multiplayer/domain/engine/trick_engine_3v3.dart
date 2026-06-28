@@ -170,15 +170,39 @@ class TrickEngine3v3 {
       return mano; // mi equipo ya gana: puedo tirar libre
     }
 
-    // Debo montar triunfo/fija que arrastre si tengo.
+    // No va ganando mi equipo. Solo me obligan a montar con un triunfo
+    // que SUPERE al que va ganando. Si no puedo superarlo, tiro libre.
+    final lider = _cartaLider(baza, paloVirado);
+    final puntLider = lider == null
+        ? -1
+        : _puntuacion(lider.carta, paloVirado, baza.first.carta.suit);
     final triunfos = mano.where(esTriunfoArrastre).toList();
-    if (triunfos.isNotEmpty) {
-      final tresBastos = mano.where(esTresBastos).toList();
-      return [...triunfos, ...tresBastos];
+    final tresBastos = mano.where(esTresBastos).toList();
+    final candidatos = [...triunfos, ...tresBastos];
+    // Triunfos/fijas que de verdad ganan al lider actual.
+    final ganadores = candidatos.where((c) {
+      final p = _puntuacion(c, paloVirado, baza.first.carta.suit);
+      return p > puntLider;
+    }).toList();
+    if (ganadores.isNotEmpty) {
+      return ganadores; // obligado a montar uno que gane
     }
-
-    // No tengo con qué arrastrar: tiro libre.
+    // No puedo superar al que va ganando: tiro libre (jugar mal).
     return mano;
+  }
+
+  // Carta que va ganando la baza parcial (o null si está vacía).
+  static CartaJugada2v2? _cartaLider(List<CartaJugada2v2> baza, Suit paloVirado) {
+    if (baza.isEmpty) return null;
+    final paloInicial = baza.first.carta.suit;
+    CartaJugada2v2 lider = baza.first;
+    for (final j in baza.skip(1)) {
+      if (_puntuacion(j.carta, paloVirado, paloInicial) >
+          _puntuacion(lider.carta, paloVirado, paloInicial)) {
+        lider = j;
+      }
+    }
+    return lider;
   }
 
   static bool _miEquipoVaGanando({
