@@ -12,7 +12,7 @@ import '../../../game/presentation/widgets/card_widget.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
 import '../../domain/engine/trick_engine_3v3.dart';
-import '../../domain/ai/ai_player_2v2.dart';
+import '../../domain/ai/ai_player_3v3.dart';
 import '../../../../core/settings/music_controller.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/app_settings.dart';
@@ -677,11 +677,12 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
       final validas = _validasDe(asiento);
-      final carta = AiPlayer2v2.elegirCarta(
+      final carta = AiPlayer3v3.elegirCarta(
         miAsiento: asiento,
         validas: validas,
         bazaActual: _baza,
         paloVirado: _paloVirado,
+        equipoDe: _equipoDeAsiento,
       );
       _jugarCarta(asiento, carta);
     });

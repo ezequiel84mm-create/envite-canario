@@ -32,6 +32,10 @@ class TrickEngine3v3 {
   /// Puntuación global de una carta para comparar quién gana la baza.
   /// Mayor = más fuerte. Cartas que no compiten devuelven un valor bajo.
   /// Necesita el palo inicial de la baza para puntuar los no-triunfos.
+  // Version publica de _puntuacion para que la IA 3v3 ordene cartas.
+  static int puntuacionPublica(CardModel c, Suit paloVirado, Suit paloInicial) =>
+      _puntuacion(c, paloVirado, paloInicial);
+
   static int _puntuacion(CardModel c, Suit paloVirado, Suit paloInicial) {
     // Puestos fijos (los más altos de todo): 1000+.
     if (c.suit == Suit.bastos && c.value == CardValue.tres) return 1003;
