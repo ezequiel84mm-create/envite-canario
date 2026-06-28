@@ -20,13 +20,18 @@ class AiPlayer3v3 {
     required int Function(int asiento) equipoDe,
   }) {
     if (validas.length == 1) return validas.first;
-    if (_random.nextDouble() < margenDeError) {
-      return validas[_random.nextInt(validas.length)];
-    }
     final ordenadas = [...validas]
       ..sort((a, b) =>
           _fuerza(a, paloVirado, bazaActual).compareTo(
               _fuerza(b, paloVirado, bazaActual)));
+    // Margen de error: a veces juega subóptimo, PERO solo entre las cartas
+    // más flojas (la mitad inferior), para no malgastar fijas ni triunfos
+    // altos a la basura.
+    if (_random.nextDouble() < margenDeError) {
+      final mitad = (ordenadas.length / 2).ceil();
+      final flojas = ordenadas.take(mitad).toList();
+      return flojas[_random.nextInt(flojas.length)];
+    }
 
     // Si abre la baza: conservador, tira floja.
     if (bazaActual.isEmpty) {
