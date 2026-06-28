@@ -21,8 +21,16 @@ class AiPlayer2v2 {
   }) {
     if (validas.length == 1) return validas.first;
 
+    // Margen de error: a veces juega suboptimo, pero solo entre las cartas
+    // mas flojas (mitad inferior), para no malgastar la malilla ni triunfos
+    // altos a la basura.
     if (_random.nextDouble() < margenDeError) {
-      return validas[_random.nextInt(validas.length)];
+      final ord = [...validas]
+        ..sort((a, b) =>
+            _fuerza(a, paloVirado).compareTo(_fuerza(b, paloVirado)));
+      final mitad = (ord.length / 2).ceil();
+      final flojas = ord.take(mitad).toList();
+      return flojas[_random.nextInt(flojas.length)];
     }
 
     // Si abre la baza (nadie ha jugado aún).
