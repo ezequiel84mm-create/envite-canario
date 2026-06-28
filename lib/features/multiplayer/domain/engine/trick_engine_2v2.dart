@@ -63,13 +63,45 @@ class TrickEngine2v2 {
             baza: baza, asiento: asiento, paloVirado: paloVirado)) {
       return mano;
     }
-    // Mi equipo no va ganando: debo montar triunfo si tengo.
-    final delTriunfo = mano.where((c) => c.suit == paloVirado).toList();
-    if (delTriunfo.isNotEmpty) {
-      return delTriunfo;
+    // Mi equipo no va ganando. Solo me obligan a montar con un triunfo
+    // que SUPERE al que va ganando. Si no puedo superarlo, tiro libre.
+    final lider = _cartaLider(baza, paloVirado);
+    final puntLider = lider == null
+        ? -1
+        : _puntuacion(lider.carta, paloVirado, baza.first.carta.suit);
+    final triunfos = mano.where((c) => c.suit == paloVirado).toList();
+    final ganadores = triunfos.where((c) =>
+        _puntuacion(c, paloVirado, baza.first.carta.suit) > puntLider).toList();
+    if (ganadores.isNotEmpty) {
+      return ganadores; // obligado a montar uno que gane
     }
-    // No tengo triunfo: tiro libre.
+    // No puedo superar al que va ganando: tiro libre.
     return mano;
+  }
+
+  // Puntuacion global de una carta para comparar en la baza (mayor=gana).
+  static int _puntuacion(CardModel c, Suit paloVirado, Suit paloInicial) {
+    if (c.suit == paloVirado) {
+      return 500 + Fuerza2v2.comoTriunfo(c.value);
+    }
+    if (c.suit == paloInicial) {
+      return 100 + Fuerza2v2.comoNoTriunfo(c.value);
+    }
+    return Fuerza2v2.comoNoTriunfo(c.value);
+  }
+
+  // Carta que va ganando la baza parcial (o null si esta vacia).
+  static CartaJugada2v2? _cartaLider(List<CartaJugada2v2> baza, Suit paloVirado) {
+    if (baza.isEmpty) return null;
+    final paloInicial = baza.first.carta.suit;
+    CartaJugada2v2 lider = baza.first;
+    for (final j in baza.skip(1)) {
+      if (_puntuacion(j.carta, paloVirado, paloInicial) >
+          _puntuacion(lider.carta, paloVirado, paloInicial)) {
+        lider = j;
+      }
+    }
+    return lider;
   }
 
   /// Va ganando la baza parcial el equipo del jugador en [asiento].
