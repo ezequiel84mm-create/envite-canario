@@ -598,7 +598,36 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     }
     setState(() {});
     _continuarSiTocaIA();
+    _quizaDecideTumboIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+  }
+
+  // Si el equipo que decide el tumbo es solo IA, decide automaticamente.
+  void _quizaDecideTumboIA() {
+    if (_enRed && !_soyAnfitrion) return;
+    if (_equipoDecideTumbo == -1) return;
+    final equipo = _equipoDecideTumbo;
+    if (!_equipoEsSoloIA(equipo)) return;
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted || _equipoDecideTumbo != equipo) return;
+      final juega = _iaDecideTumbo(equipo);
+      _anfitrionResuelveTumboEquipo(juega);
+    });
+  }
+
+  // Decision IA del tumbo: juega si tiene mano fuerte (triunfo alto o fija).
+  bool _iaDecideTumbo(int equipo) {
+    int mejores = 0;
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipo) continue;
+      for (final cc in _manos[a]) {
+        final p = TrickEngine3v3.puntuacionPublica(cc, _paloVirado, cc.suit);
+        if (p >= 500) mejores++;
+      }
+    }
+    if (mejores >= 2) return _random33.nextDouble() < 0.7;
+    if (mejores == 1) return _random33.nextDouble() < 0.4;
+    return _random33.nextDouble() < 0.15;
   }
 
   List<CardModel> _validasDe(int asiento) {

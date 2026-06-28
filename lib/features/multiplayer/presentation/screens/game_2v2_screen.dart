@@ -605,7 +605,33 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     }
     setState(() {});
     _continuarSiTocaIA();
+    _quizaDecideTumboIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+  }
+
+  // Si el equipo que decide el tumbo es solo IA, decide automaticamente.
+  void _quizaDecideTumboIA() {
+    if (_enRed && !_soyAnfitrion) return;
+    if (_equipoDecideTumbo == -1) return;
+    final equipo = _equipoDecideTumbo;
+    if (!_equipoEsSoloIA(equipo)) return;
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted || _equipoDecideTumbo != equipo) return;
+      final juega = _iaDecideTumbo(equipo);
+      _anfitrionResuelveTumboEquipo(juega);
+    });
+  }
+
+  // Decision IA del tumbo: juega si tiene triunfos (mano fuerte).
+  bool _iaDecideTumbo(int equipo) {
+    int triunfos = 0;
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipo) continue;
+      triunfos += _manos[a].where((cc) => cc.suit == _paloVirado).length;
+    }
+    if (triunfos >= 2) return _random22.nextDouble() < 0.7;
+    if (triunfos == 1) return _random22.nextDouble() < 0.4;
+    return _random22.nextDouble() < 0.15;
   }
 
   List<CardModel> _validasDe(int asiento) {
