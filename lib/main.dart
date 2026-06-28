@@ -506,6 +506,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _mostrarFinPartida(String ganadorPartida) {
+    // Sonido de fin de partida: victoria o derrota.
+    _reproducirSonido(
+        ganadorPartida == 'tu' ? 'chacaras.mp3' : 'se_me_fue_el_baifo.mp3');
     showDialog(
       context: context,
       barrierDismissible: false,

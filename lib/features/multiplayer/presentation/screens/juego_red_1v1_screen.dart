@@ -607,6 +607,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         widget.soyAnfitrion ? ganoAnfitrion : !ganoAnfitrion;
     final esChico = _pendienteDialogo == 'chico';
     final esPartida = _pendienteDialogo == 'partida';
+    // Sonido de fin de partida: victoria o derrota.
+    if (esPartida) {
+      _reproducirEfecto(
+          ganaMiJugador ? 'chacaras.mp3' : 'se_me_fue_el_baifo.mp3');
+    }
     final misChicos =
         widget.soyAnfitrion ? _chicosAnfitrion : _chicosInvitado;
     final chicosRival =

@@ -468,6 +468,11 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     final ganaMiEquipo = _ganadorDialogoEquipo == miEquipo;
     final esChico = _pendienteDialogo == 'chico';
     final esPartida = _pendienteDialogo == 'partida';
+    // Sonido de fin de partida: victoria o derrota.
+    if (esPartida) {
+      _reproducirEfecto(
+          ganaMiEquipo ? 'chacaras.mp3' : 'se_me_fue_el_baifo.mp3');
+    }
     final misChicos = miEquipo == 0 ? _chicosEquipo0 : _chicosEquipo1;
     final chicosRival = miEquipo == 0 ? _chicosEquipo1 : _chicosEquipo0;
     showDialog(
