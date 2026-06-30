@@ -149,6 +149,11 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
           _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
         }
       };
+      // Si un invitado se cae a media partida, su asiento pasa a IA.
+      con.alDesconectarInvitado = (idInvitado) {
+        if (!mounted) return;
+        _jugadorDesconectado(idInvitado);
+      };
     } else {
       con.alRecibirDeAnfitrion = (texto) {
         if (!mounted) return;
@@ -873,6 +878,22 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   // Equipo (0/1) de un asiento, según la config de la sala o paridad.
+void _jugadorDesconectado(String idInvitado) {
+    final cfg = widget.config;
+    if (cfg == null) return;
+    final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);
+    if (idx == -1) return;
+    final caido = cfg.jugadores[idx];
+    if (caido.esIA) return;
+    cfg.jugadores[idx] = caido.copiarComoIA();
+    _mensaje = '${caido.nombre} se desconecto. Le sustituye una IA.';
+    setState(() {});
+    _enviarEstadoJuego();
+    _continuarSiTocaIA();
+    _quizaRespondeIA();
+    _quizaDecideTumboIA();
+  }
+
   int _equipoDeAsiento(int asiento) {
     final cfg = widget.config;
     if (cfg != null) {

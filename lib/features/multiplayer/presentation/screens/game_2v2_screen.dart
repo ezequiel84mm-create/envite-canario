@@ -148,6 +148,11 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
         }
       };
+      // Si un invitado se cae a media partida, su asiento pasa a IA.
+      con.alDesconectarInvitado = (idInvitado) {
+        if (!mounted) return;
+        _jugadorDesconectado(idInvitado);
+      };
     } else {
       con.alRecibirDeAnfitrion = (texto) {
         if (!mounted) return;
@@ -386,6 +391,22 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       if (_equipoDeAsiento(j.asiento) == equipo && !j.esIA) return false;
     }
     return true;
+  }
+
+void _jugadorDesconectado(String idInvitado) {
+    final cfg = widget.config;
+    if (cfg == null) return;
+    final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);
+    if (idx == -1) return;
+    final caido = cfg.jugadores[idx];
+    if (caido.esIA) return;
+    cfg.jugadores[idx] = caido.copiarComoIA();
+    _mensaje = '${caido.nombre} se desconecto. Le sustituye una IA.';
+    setState(() {});
+    _enviarEstadoJuego();
+    _continuarSiTocaIA();
+    _quizaRespondeIA();
+    _quizaDecideTumboIA();
   }
 
   int _equipoDeAsiento(int asiento) {
