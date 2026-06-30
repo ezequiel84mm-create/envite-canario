@@ -16,6 +16,16 @@ class JugadorPartida {
     required this.esIA,
   });
 
+  // Copia este jugador convertido en IA (cuando se desconecta a media
+  // partida). Mantiene asiento y equipo; cambia id/nombre a los de una IA.
+  JugadorPartida copiarComoIA() => JugadorPartida(
+        id: 'ia_$asiento',
+        nombre: 'IA ${asiento + 1}',
+        asiento: asiento,
+        equipo: equipo,
+        esIA: true,
+      );
+
   Map<String, dynamic> aMapa() => {
         'id': id,
         'nombre': nombre,

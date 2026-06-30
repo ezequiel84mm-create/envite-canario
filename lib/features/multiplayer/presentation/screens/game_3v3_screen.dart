@@ -149,6 +149,11 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
           _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
         }
       };
+      // Si un invitado se cae a media partida, su asiento pasa a IA.
+      con.alDesconectarInvitado = (idInvitado) {
+        if (!mounted) return;
+        _jugadorDesconectado(idInvitado);
+      };
     } else {
       con.alRecibirDeAnfitrion = (texto) {
         if (!mounted) return;
@@ -870,6 +875,25 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   bool _esCompaneroPos(int posicion) {
     final asiento = _asientoEnPos(posicion);
     return _equipoDeAsiento(asiento) == _miEquipo();
+  }
+
+  // Un invitado se desconectó a media partida: su asiento pasa a IA.
+  void _jugadorDesconectado(String idInvitado) {
+    final cfg = widget.config;
+    if (cfg == null) return;
+    final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);
+    if (idx == -1) return;
+    final caido = cfg.jugadores[idx];
+    if (caido.esIA) return; // ya era IA
+    // Reemplazamos al jugador por una IA en su mismo asiento/equipo.
+    cfg.jugadores[idx] = caido.copiarComoIA();
+    _mensaje = '${caido.nombre} se desconectó. Le sustituye una IA.';
+    setState(() {});
+    _enviarEstadoJuego();
+    // Si era su turno (o hay un envite/tumbo esperando), que la IA actúe.
+    _continuarSiTocaIA();
+    _quizaRespondeIA();
+    _quizaDecideTumboIA();
   }
 
   // Equipo (0/1) de un asiento, según la config de la sala o paridad.
