@@ -326,6 +326,45 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _quizaRespondeIA();
   }
 
+  // La IA del asiento considera proponer un envite antes de jugar.
+  // Devuelve true si canto (en ese caso no juega carta todavia).
+  bool _iaConsideraEnvite(int asiento) {
+    if (_enviteCantado) return false;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return false;
+    if (_nivelApuesta >= 4) return false;
+    final equipo = _equipoDeAsiento(asiento);
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) {
+      return false;
+    }
+    int fuertes = 0;
+    int muyFuertes = 0;
+    if (asiento < _manos.length) {
+      for (final cc in _manos[asiento]) {
+        final p = TrickEngine3v3.puntuacionPublica(cc, _paloVirado, cc.suit);
+        if (p >= 1000) {
+          muyFuertes++;
+        } else if (p >= 508) {
+          muyFuertes++;
+        } else if (p >= 500) {
+          fuertes++;
+        }
+      }
+    }
+    double prob;
+    if (muyFuertes >= 1) {
+      prob = 0.45;
+    } else if (fuertes >= 2) {
+      prob = 0.25;
+    } else if (fuertes == 1) {
+      prob = 0.10;
+    } else {
+      prob = 0.03;
+    }
+    if (_random33.nextDouble() >= prob) return false;
+    _anfitrionRegistraCanto(equipo);
+    return true;
+  }
+
   // Si el equipo que debe responder es solo IA, decide automaticamente.
   void _quizaRespondeIA() {
     if (_enRed && !_soyAnfitrion) return; // solo el cerebro decide
@@ -711,6 +750,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
+      // Antes de jugar, la IA considera proponer un envite.
+      if (_iaConsideraEnvite(asiento)) return; // canto: espera respuesta
       final validas = _validasDe(asiento);
       final carta = AiPlayer3v3.elegirCarta(
         miAsiento: asiento,
