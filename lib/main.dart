@@ -360,6 +360,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       mano: tu.hand,
       paloInicialBaza: paloInicial,
       paloDeLaMano: paloDeLaMano,
+      baza: bazaActual,
     );
   }
 
@@ -406,6 +407,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       mano: ia.hand,
       paloInicialBaza: paloInicial,
       paloDeLaMano: paloDeLaMano,
+      baza: bazaActual,
     );
 
     final cartaElegida = AiPlayer.elegirCarta(

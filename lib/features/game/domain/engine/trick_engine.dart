@@ -22,6 +22,7 @@ class TrickEngine {
     required Suit? paloInicialBaza,
     required Suit paloDeLaMano,
     CardValue maxima = maximaPorDefecto,
+    List<PlayedCard> baza = const [],
   }) {
     if (paloInicialBaza == null) {
       // Es el primero en jugar, puede tirar lo que quiera
@@ -49,16 +50,42 @@ class TrickEngine {
 
     final delPaloInicial =
         mano.where((c) => c.suit == paloInicialBaza).toList();
+    if (delPaloInicial.isNotEmpty) {
+      // Tengo el palo de salida: puedo asistir o montar triunfo (libre).
+      final delTriunfo =
+          mano.where((c) => c.suit == paloDeLaMano).toList();
+      return <CardModel>{...delPaloInicial, ...delTriunfo}.toList();
+    }
+    // No tengo el palo de salida. Si tengo triunfo, solo me obligan a
+    // montar si SUPERA la carta que va ganando; si no, descarto libre.
     final delTriunfo =
         mano.where((c) => c.suit == paloDeLaMano).toList();
-
-    final validas = <CardModel>{...delPaloInicial, ...delTriunfo}.toList();
-
-    if (validas.isNotEmpty) {
-      return validas;
+    if (delTriunfo.isNotEmpty && baza.isNotEmpty) {
+      final paloInicial = baza.first.card.suit;
+      PlayedCard lider = baza.first;
+      for (final j in baza.skip(1)) {
+        if (_esMejor(
+            candidata: j.card,
+            actual: lider.card,
+            paloDeLaMano: paloDeLaMano,
+            paloInicial: paloInicial)) {
+          lider = j;
+        }
+      }
+      final ganadores = delTriunfo.where((cc) => _esMejor(
+            candidata: cc,
+            actual: lider.card,
+            paloDeLaMano: paloDeLaMano,
+            paloInicial: paloInicial,
+          )).toList();
+      if (ganadores.isNotEmpty) {
+        return ganadores;
+      }
+      return mano;
     }
-
-    // No tiene ni del palo inicial ni triunfo, puede jugar cualquiera
+    if (delTriunfo.isNotEmpty) {
+      return delTriunfo;
+    }
     return mano;
   }
 
