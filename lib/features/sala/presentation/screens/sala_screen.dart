@@ -63,6 +63,21 @@ class _SalaScreenState extends State<SalaScreen> {
     };
   }
 
+  // Devuelve un alias que no choque con los ya sentados. Si 'Juan' existe,
+  // prueba 'Juan 2', 'Juan 3', etc.
+  String _aliasUnico(String base) {
+    final ocupados = _sala.asientos
+        .where((a) => !a.estaVacio)
+        .map((a) => a.ocupante!.apodo)
+        .toSet();
+    if (!ocupados.contains(base)) return base;
+    int n = 2;
+    while (ocupados.contains('$base $n')) {
+      n++;
+    }
+    return '$base $n';
+  }
+
   void _sentarInvitado(String idInvitado, String alias) {
     if (_sala.asientoDe(idInvitado) != null) return;
     final libre = _sala.asientos.firstWhere(
@@ -70,7 +85,7 @@ class _SalaScreenState extends State<SalaScreen> {
       orElse: () => _sala.asientos.first,
     );
     if (!libre.estaVacio) return;
-    libre.ocupante = JugadorSala(id: idInvitado, apodo: alias);
+    libre.ocupante = JugadorSala(id: idInvitado, apodo: _aliasUnico(alias));
     // Le decimos al invitado cuál es su id (para que sepa quién es).
     _conexion.enviarA(idInvitado, MensajeRed(
       TipoMensajeSala.tuId,
