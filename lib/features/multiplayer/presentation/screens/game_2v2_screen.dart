@@ -325,6 +325,42 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     _quizaRespondeIA();
   }
 
+  // La IA del asiento considera proponer un envite antes de jugar.
+  // Devuelve true si canto (en ese caso no juega carta todavia).
+  bool _iaConsideraEnvite(int asiento) {
+    if (_enviteCantado) return false;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return false;
+    if (_nivelApuesta >= 4) return false;
+    final equipo = _equipoDeAsiento(asiento);
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) {
+      return false;
+    }
+    int triunfos = 0;
+    int triunfosAltos = 0;
+    if (asiento < _manos.length) {
+      for (final cc in _manos[asiento]) {
+        if (cc.suit == _paloVirado) {
+          triunfos++;
+          // Triunfo alto: malilla (el 2) o figura (fuerza >= 8).
+          if (cc.value.numero == 2 || cc.value.fuerza >= 8) triunfosAltos++;
+        }
+      }
+    }
+    double prob;
+    if (triunfosAltos >= 1) {
+      prob = 0.45;
+    } else if (triunfos >= 2) {
+      prob = 0.25;
+    } else if (triunfos == 1) {
+      prob = 0.10;
+    } else {
+      prob = 0.03;
+    }
+    if (_random22.nextDouble() >= prob) return false;
+    _anfitrionRegistraCanto(equipo);
+    return true;
+  }
+
   // Si el equipo que debe responder es solo IA, decide automaticamente.
   void _quizaRespondeIA() {
     if (_enRed && !_soyAnfitrion) return; // solo el cerebro decide
@@ -714,6 +750,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
+      // Antes de jugar, la IA considera proponer un envite.
+      if (_iaConsideraEnvite(asiento)) return; // canto: espera respuesta
       final validas = _validasDe(asiento);
       final carta = AiPlayer2v2.elegirCarta(
         miAsiento: asiento,
