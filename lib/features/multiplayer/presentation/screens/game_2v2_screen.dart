@@ -126,6 +126,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     final con = widget.conexion!;
     if (_soyAnfitrion) {
       con.alRecibirDeInvitado = (idInvitado, texto) {
+        if (!mounted) return;
         final msg = MensajeRed.decodificar(texto);
         if (msg == null) return;
         if (msg.tipo == TipoMensajeSala.jugarCarta) {
@@ -149,6 +150,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
       };
     } else {
       con.alRecibirDeAnfitrion = (texto) {
+        if (!mounted) return;
         final msg = MensajeRed.decodificar(texto);
         if (msg == null) return;
         if (msg.tipo == TipoMensajeSala.estadoJuego) {
@@ -278,6 +280,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   @override
   void dispose() {
+    widget.conexion?.alRecibirDeInvitado = null;
+    widget.conexion?.alRecibirDeAnfitrion = null;
     _sfxPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
