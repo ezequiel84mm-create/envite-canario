@@ -219,6 +219,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // ===== Recepción de mensajes =====
   void _alRecibirMensaje(String texto) {
+    if (!mounted) return; // la pantalla ya no existe: ignorar mensajes tardios
     final msg = MensajeRed.decodificar(texto);
     if (msg == null) return;
 
@@ -433,6 +434,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   @override
   void dispose() {
+    widget.conexion.alRecibir = null; // dejar de escuchar antes de cerrar
     MusicController.instance.reanudar();
     _sfxPlayer.dispose();
     widget.conexion.cerrar();
