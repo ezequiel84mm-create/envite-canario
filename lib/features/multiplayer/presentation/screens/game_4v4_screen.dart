@@ -1,15 +1,25 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../sala/domain/models/config_partida.dart';
 import '../../../sala/network/conexion_sala.dart';
+import '../../../sala/network/mensajes_sala.dart';
+import '../../network/mensajes_red.dart';
+import '../../network/traductor_cartas.dart';
 import '../../../../core/enums/suit.dart';
+import '../../../../core/enums/card_value.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
-import '../../domain/ai/ai_player_2v2.dart';
+import '../../domain/engine/trick_engine_4v4.dart';
+import '../../domain/ai/ai_player_4v4.dart';
 import '../../../../core/settings/music_controller.dart';
+import 'package:audioplayers/audioplayers.dart';
+import '../../../../core/settings/app_settings.dart';
+import '../../../../core/settings/voces.dart';
+import '../widgets/widgets_mesa.dart';
 
-/// Pantalla del 4vs4 con diseño (Etapa B).
+/// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
 /// Equipo A (tú): 0 y 2. Equipo B (rivales): 1 y 3.
 class Game4v4Screen extends StatefulWidget {
@@ -22,17 +32,74 @@ class Game4v4Screen extends StatefulWidget {
 }
 
 class _Game4v4ScreenState extends State<Game4v4Screen> {
-  late List<List<CardModel>> _manos;
-  late Suit _paloVirado;
-  late CardModel _vira;
+  // Inicializadas con valores neutros: el invitado las dibuja vacías
+  // hasta recibir el estado real del anfitrión.
+  List<List<CardModel>> _manos = [];
+  Suit _paloVirado = Suit.oros;
+  CardModel _vira = const CardModel(suit: Suit.oros, value: CardValue.uno);
 
   List<CartaJugada2v2> _baza = [];
   int _turno = 0;
   int _manosEquipo0 = 0;
   int _manosEquipo1 = 0;
+  // Bazas ganadas por cada jugador (asiento 0..numJug-1).
+  List<int> _bazasAsiento = [0, 0, 0, 0, 0, 0, 0, 0];
+  // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
+  int _piedrasEquipo0 = 0;
+  int _piedrasEquipo1 = 0;
+  int _chicosEquipo0 = 0;
+  int _chicosEquipo1 = 0;
+  // ===== Envite por equipo =====
+  int _nivelApuesta = 0;       // 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
+  bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
+  final _random44 = Random();
+  int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
+  int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
+  int _equipoTurnoApuesta = -1; // -1=cualquiera puede cantar; si no, solo ese equipo
+  // ===== Diálogo fin de mano/chico/partida =====
+  String _pendienteDialogo = 'ninguno'; // ninguno/mano/chico/partida
+  int _piedrasSumadasDialogo = 0;
+  int _ganadorDialogoEquipo = -1; // equipo (0/1) que gana lo que muestra el diálogo
+  // ===== Tumbo por equipo =====
+  bool _manoEsDeTumbo = false;
+  int _equipoDecideTumbo = -1; // -1=sin tumbo/forzoso, 0=eq0 decide, 1=eq1
   String _mensaje = '';
+  bool _mensajeEsTurno = false; // si true, el invitado recalcula el texto
   bool _rondaTerminada = false;
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
+  int _barajador = 0; // quién baraja esta mano; sale el de su izquierda
+
+  // ¿Esta partida es en red? (hay conexión y config)
+  bool get _enRed => widget.conexion != null && widget.config != null;
+  // ¿Soy el anfitrión? (en modo local, sí por defecto)
+  bool get _soyAnfitrion => widget.conexion?.soyAnfitrion ?? true;
+
+  List<CardModel> _miManoRed = []; // mano del invitado recibida por red
+  List<int> _numCartasPorAsiento = []; // cuántas cartas tiene cada asiento
+
+  // Reproductor de efectos (voz de los envites).
+  final AudioPlayer _sfxPlayer = AudioPlayer();
+
+  // Reproduce el canto de voz según el nivel de apuesta.
+  // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
+  void _sonidoApuesta(int nivel, {required int equipoCanta}) {
+    if (!AppSettings.instance.efectosActivados) return;
+    const nombres = {1: 'envido', 2: 'siete', 3: 'nueve', 4: 'chico_fuera'};
+    final nombre = nombres[nivel];
+    if (nombre == null) return;
+    // El equipo local usa la voz propia; el rival una voz por defecto.
+    final idVoz = (equipoCanta == _miEquipo())
+        ? AppSettings.instance.vozPropia
+        : Voces.disponibles.first.id;
+    final voz = Voces.porId(idVoz);
+    _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
+  }
+
+  // Reproduce un efecto simple (reparto, recoger baraja).
+  void _reproducirEfecto(String archivo) {
+    if (!AppSettings.instance.efectosActivados) return;
+    _sfxPlayer.play(AssetSource('audio/$archivo'));
+  }
 
   @override
   void initState() {
@@ -41,40 +108,608 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     if (widget.config != null) {
       _numJug = widget.config!.numJugadores;
     }
-    _repartirNuevaRonda();
+    if (_enRed) {
+      _configurarRed();
+      if (_soyAnfitrion) {
+        _repartirNuevaRonda();
+      } else {
+        widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.jugarCarta, {'pedirEstado': true})
+              .codificar());
+        _mensaje = 'Esperando reparto...';
+      }
+    } else {
+      _repartirNuevaRonda();
+    }
+  }
+
+  void _configurarRed() {
+    final con = widget.conexion!;
+    if (_soyAnfitrion) {
+      con.alRecibirDeInvitado = (idInvitado, texto) {
+        final msg = MensajeRed.decodificar(texto);
+        if (msg == null) return;
+        if (msg.tipo == TipoMensajeSala.jugarCarta) {
+          if (msg.datos['pedirEstado'] == true) {
+            _enviarEstadoJuego();
+          } else {
+            final carta = TraductorCartas.desdeTexto(msg.datos['carta']);
+            final asiento = msg.datos['asiento'];
+            if (carta != null && asiento != null) {
+              _anfitrionRecibeJugada(asiento, carta);
+            }
+          }
+        } else if (msg.tipo == TipoMensajeSala.proponerEnvite) {
+          final equipo = msg.datos['equipo'];
+          if (equipo != null) _anfitrionRegistraCanto(equipo);
+        } else if (msg.tipo == TipoMensajeSala.respuestaEnvite) {
+          _anfitrionResuelveRespuesta(msg.datos['accion']);
+        } else if (msg.tipo == TipoMensajeSala.decisionTumbo) {
+          _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
+        }
+      };
+    } else {
+      con.alRecibirDeAnfitrion = (texto) {
+        final msg = MensajeRed.decodificar(texto);
+        if (msg == null) return;
+        if (msg.tipo == TipoMensajeSala.estadoJuego) {
+          _invitadoRecibeEstado(msg.datos);
+        } else if (msg.tipo == TipoMensajeSala.miMano) {
+          setState(() {
+            _miManoRed = TraductorCartas.listaDesdeTexto(msg.datos['mano'] ?? []);
+          });
+        }
+      };
+    }
+  }
+
+  void _enviarEstadoJuego() {
+    if (!_enRed || !_soyAnfitrion) return;
+    final con = widget.conexion!;
+    final baza = _baza
+        .map((j) => {'asiento': j.asiento, 'carta': TraductorCartas.aTexto(j.carta)})
+        .toList();
+    final comun = {
+      'vira': TraductorCartas.aTexto(_vira),
+      'baza': baza,
+      'turno': _turno,
+      'manosEquipo0': _manosEquipo0,
+      'manosEquipo1': _manosEquipo1,
+      'bazasAsiento': _bazasAsiento,
+      'piedrasEquipo0': _piedrasEquipo0,
+      'piedrasEquipo1': _piedrasEquipo1,
+      'chicosEquipo0': _chicosEquipo0,
+      'chicosEquipo1': _chicosEquipo1,
+      'nivelApuesta': _nivelApuesta,
+      'manoEsDeTumbo': _manoEsDeTumbo,
+      'equipoDecideTumbo': _equipoDecideTumbo,
+      'pendienteDialogo': _pendienteDialogo,
+      'piedrasSumadasDialogo': _piedrasSumadasDialogo,
+      'ganadorDialogoEquipo': _ganadorDialogoEquipo,
+      'enviteCantado': _enviteCantado,
+      'equipoCanto': _equipoCanto,
+      'nivelPropuesto': _nivelPropuesto,
+      'equipoTurnoApuesta': _equipoTurnoApuesta,
+      'rondaTerminada': _rondaTerminada,
+      'mensaje': _mensaje,
+      'mensajeEsTurno': _mensajeEsTurno,
+      'numCartas': _manos.map((m) => m.length).toList(),
+    };
+    con.enviarATodos(
+        MensajeRed(TipoMensajeSala.estadoJuego, comun).codificar());
+
+    final cfg = widget.config!;
+    for (int asiento = 0; asiento < cfg.jugadores.length; asiento++) {
+      final jug = cfg.jugadores[asiento];
+      if (jug.esIA) continue;
+      if (jug.id == 'anfitrion') continue;
+      con.enviarA(
+          jug.id,
+          MensajeRed(TipoMensajeSala.miMano, {
+            'mano': TraductorCartas.listaATexto(_manos[asiento]),
+          }).codificar());
+    }
+  }
+
+  void _anfitrionRecibeJugada(int asiento, CardModel carta) {
+    if (asiento != _turno || _rondaTerminada) return;
+    final mano = _manos[asiento];
+    final existe = mano.any((cc) =>
+        cc.suit == carta.suit && cc.value == carta.value);
+    if (!existe) return;
+    _jugarCarta(asiento, carta);
+    _enviarEstadoJuego();
+  }
+
+  void _invitadoRecibeEstado(Map<String, dynamic> d) {
+    final anteriorDialogo = _pendienteDialogo;
+    setState(() {
+      _vira = TraductorCartas.desdeTexto(d['vira'])!;
+      _paloVirado = _vira.suit;
+      _baza = ((d['baza'] as List?) ?? []).map((j) {
+        return CartaJugada2v2(
+          asiento: j['asiento'],
+          carta: TraductorCartas.desdeTexto(j['carta'])!,
+        );
+      }).toList();
+      _turno = d['turno'] ?? 0;
+      _manosEquipo0 = d['manosEquipo0'] ?? 0;
+      _manosEquipo1 = d['manosEquipo1'] ?? 0;
+      _bazasAsiento = ((d['bazasAsiento'] as List?) ?? [0, 0, 0, 0])
+          .map((e) => e as int)
+          .toList();
+      _piedrasEquipo0 = d['piedrasEquipo0'] ?? 0;
+      _piedrasEquipo1 = d['piedrasEquipo1'] ?? 0;
+      _chicosEquipo0 = d['chicosEquipo0'] ?? 0;
+      _chicosEquipo1 = d['chicosEquipo1'] ?? 0;
+      _nivelApuesta = d['nivelApuesta'] ?? 0;
+      _manoEsDeTumbo = d['manoEsDeTumbo'] ?? false;
+      _equipoDecideTumbo = d['equipoDecideTumbo'] ?? -1;
+      _pendienteDialogo = d['pendienteDialogo'] ?? 'ninguno';
+      _piedrasSumadasDialogo = d['piedrasSumadasDialogo'] ?? 0;
+      _ganadorDialogoEquipo = d['ganadorDialogoEquipo'] ?? -1;
+      _enviteCantado = d['enviteCantado'] ?? false;
+      _equipoCanto = d['equipoCanto'] ?? -1;
+      _nivelPropuesto = d['nivelPropuesto'] ?? 0;
+      _equipoTurnoApuesta = d['equipoTurnoApuesta'] ?? -1;
+      _rondaTerminada = d['rondaTerminada'] ?? false;
+      _mensajeEsTurno = d['mensajeEsTurno'] ?? false;
+      _mensaje = _mensajeEsTurno ? _mensajeTurno() : (d['mensaje'] ?? '');
+      _numCartasPorAsiento =
+          ((d['numCartas'] as List?) ?? []).map((e) => e as int).toList();
+    });
+    if (_pendienteDialogo != 'ninguno' && anteriorDialogo == 'ninguno') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mostrarDialogoFinEquipos();
+      });
+    }
+  }
+
+
+  // Nombre del jugador en un ASIENTO ABSOLUTO (el que viene en el estado).
+  String _nombrePosicion(int asiento) {
+    final cfg = widget.config;
+    if (cfg != null) {
+      if (asiento < cfg.jugadores.length) {
+        return cfg.jugadores[asiento].nombre;
+      }
+    }
+    return _nombreAsiento(asiento); // modo local: etiquetas
   }
 
   @override
   void dispose() {
+    _sfxPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
   }
 
+  // ===== ENVITE =====
+  // ¿Puede el equipo local cantar/subir ahora?
+  bool get _puedoCantar {
+    if (_rondaTerminada || _equipoDecideTumbo != -1) return false;
+    if (_manoEsDeTumbo) return false; // en tumbo no se canta envite
+    if (_enviteCantado) return false;
+    if (_nivelApuesta >= 4) return false;
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != _miEquipo()) {
+      return false;
+    }
+    return true;
+  }
+
+
+  // Lo llama quien pulsa ENVIDAR / SUBIR.
+  void _cantarEnvite() {
+    if (!_puedoCantar) return;
+    final miEquipo = _miEquipo();
+    if (_soyAnfitrion) {
+      _anfitrionRegistraCanto(miEquipo);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.proponerEnvite, {'equipo': miEquipo})
+            .codificar());
+    }
+  }
+
+  void _anfitrionRegistraCanto(int equipo) {
+    if (_rondaTerminada) return;
+    if (_enviteCantado) return;
+    if (_nivelApuesta >= 4) return;
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) return;
+    _enviteCantado = true;
+    _equipoCanto = equipo;
+    _nivelPropuesto = _nivelApuesta + 1;
+    _sonidoApuesta(_nivelPropuesto, equipoCanta: equipo);
+    _mensaje = 'Envite cantado. ¡Responde el rival!';
+    setState(() {});
+    _enviarEstadoJuego();
+    _quizaRespondeIA();
+  }
+
+  // La IA del asiento considera proponer un envite antes de jugar.
+  // Devuelve true si canto (en ese caso no juega carta todavia).
+  bool _iaConsideraEnvite(int asiento) {
+    if (_enviteCantado) return false;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return false;
+    if (_nivelApuesta >= 4) return false;
+    final equipo = _equipoDeAsiento(asiento);
+    if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) {
+      return false;
+    }
+    int fuertes = 0;
+    int muyFuertes = 0;
+    if (asiento < _manos.length) {
+      for (final cc in _manos[asiento]) {
+        final p = TrickEngine4v4.puntuacionPublica(cc, _paloVirado, cc.suit);
+        if (p >= 1000) {
+          muyFuertes++;
+        } else if (p >= 508) {
+          muyFuertes++;
+        } else if (p >= 500) {
+          fuertes++;
+        }
+      }
+    }
+    double prob;
+    if (muyFuertes >= 1) {
+      prob = 0.45;
+    } else if (fuertes >= 2) {
+      prob = 0.25;
+    } else if (fuertes == 1) {
+      prob = 0.10;
+    } else {
+      prob = 0.03;
+    }
+    if (_random44.nextDouble() >= prob) return false;
+    _anfitrionRegistraCanto(equipo);
+    return true;
+  }
+
+  // Si el equipo que debe responder es solo IA, decide automaticamente.
+  void _quizaRespondeIA() {
+    if (_enRed && !_soyAnfitrion) return; // solo el cerebro decide
+    if (!_enviteCantado) return;
+    final equipoResponde = _equipoCanto == 0 ? 1 : 0;
+    if (!_equipoEsSoloIA(equipoResponde)) return;
+    Future.delayed(const Duration(milliseconds: 1300), () {
+      if (!mounted || !_enviteCantado) return;
+      final accion = _iaDecideRespuesta(equipoResponde);
+      _anfitrionResuelveRespuesta(accion);
+      if (accion == 'subir') _quizaRespondeIA();
+    });
+  }
+
+  // Todos los jugadores de un equipo son IA?
+  bool _equipoEsSoloIA(int equipo) {
+    final cfg = widget.config;
+    if (cfg == null) return true; // modo local: rival = IA
+    for (final j in cfg.jugadores) {
+      if (_equipoDeAsiento(j.asiento) == equipo && !j.esIA) return false;
+    }
+    return true;
+  }
+
+  // Decision IA: acepta si tiene triunfo o el valor es bajo (<=7).
+  String _iaDecideRespuesta(int equipo) {
+    final valores = [2, 4, 7, 9, 12];
+    final valorProx = valores[_nivelPropuesto];
+    bool tieneTriunfo = false;
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipo) continue;
+      if (_manos[a].any((cc) => cc.suit == _paloVirado)) {
+        tieneTriunfo = true;
+        break;
+      }
+    }
+    final acepta = tieneTriunfo || valorProx <= 7;
+    if (!acepta) return 'paso';
+    if (tieneTriunfo && _nivelPropuesto < 4 && _random44.nextDouble() < 0.25) {
+      return 'subir';
+    }
+    return 'juego';
+  }
+
+  void _responderEnvite(String accion) {
+    if (!_enviteCantado) return;
+    if (_soyAnfitrion) {
+      _anfitrionResuelveRespuesta(accion);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.respuestaEnvite, {'accion': accion})
+            .codificar());
+    }
+  }
+
+  void _anfitrionResuelveRespuesta(String accion) {
+    if (!_enviteCantado) return;
+    if (accion == 'juego') {
+      final aceptante = _equipoCanto == 0 ? 1 : 0;
+      _nivelApuesta = _nivelPropuesto;
+      _enviteCantado = false;
+      _equipoCanto = -1;
+      _equipoTurnoApuesta = aceptante;
+      _mensaje = 'Envite aceptado. Seguid jugando.';
+    } else if (accion == 'paso') {
+      // NO QUIERO = juega con lo que tenemos: se queda en el ultimo nivel
+      // aceptado (_nivelApuesta sin tocar) y la mano sigue. Se cobra al ganar.
+      _enviteCantado = false;
+      _equipoCanto = -1;
+      _equipoTurnoApuesta = -1;
+      _mensaje = 'Juegan con lo apostado (${_nombreNivel(_nivelApuesta)}).';
+    } else if (accion == 'subir') {
+      if (_nivelPropuesto < 4) {
+        _nivelPropuesto += 1;
+        _equipoCanto = _equipoCanto == 0 ? 1 : 0;
+        _sonidoApuesta(_nivelPropuesto, equipoCanta: _equipoCanto);
+        _mensaje = 'Suben la apuesta. ¡Responde el rival!';
+      }
+    }
+    setState(() {});
+    if (_enviteCantado) _quizaRespondeIA();
+    _enviarEstadoJuego();
+  }
+
+
+  // Suma las piedras de la mano al equipo ganador y comprueba el chico.
+  void _finalizarRondaEquipos() {
+    final valores = [2, 4, 7, 9, 12];
+    _reproducirEfecto('sonido_recoger_baraja.mp3');
+    final valorMano = _manoEsDeTumbo ? 3 : valores[_nivelApuesta];
+    final gana0 = _manosEquipo0 > _manosEquipo1;
+    if (gana0) {
+      _piedrasEquipo0 += valorMano;
+    } else {
+      _piedrasEquipo1 += valorMano;
+    }
+    _ganadorDialogoEquipo = gana0 ? 0 : 1;
+    _piedrasSumadasDialogo = valorMano;
+    _comprobarFinYMostrarDialogo();
+  }
+
+  // Detección central: chico (12 piedras) y partida (2 chicos).
+  // Fija _pendienteDialogo y dispara el diálogo (anfitrión).
+  void _comprobarFinYMostrarDialogo() {
+    const chicosParaGanar = 4; // 2v2 se gana a 4 chicos
+    bool huboChico = false;
+    if (_piedrasEquipo0 >= 12) {
+      _chicosEquipo0++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+      _ganadorDialogoEquipo = 0;
+      huboChico = true;
+    } else if (_piedrasEquipo1 >= 12) {
+      _chicosEquipo1++;
+      _piedrasEquipo0 = 0;
+      _piedrasEquipo1 = 0;
+      _ganadorDialogoEquipo = 1;
+      huboChico = true;
+    }
+    final finPartida = _chicosEquipo0 >= chicosParaGanar ||
+        _chicosEquipo1 >= chicosParaGanar;
+    if (finPartida) {
+      _pendienteDialogo = 'partida';
+    } else if (huboChico) {
+      _pendienteDialogo = 'chico';
+    } else {
+      _pendienteDialogo = 'mano';
+    }
+    _rondaTerminada = true;
+    setState(() {});
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mostrarDialogoFinEquipos();
+    });
+  }
+
+  void _mostrarDialogoFinEquipos() {
+    if (!mounted || _pendienteDialogo == 'ninguno') return;
+    final miEquipo = _miEquipo();
+    final ganaMiEquipo = _ganadorDialogoEquipo == miEquipo;
+    final esChico = _pendienteDialogo == 'chico';
+    final esPartida = _pendienteDialogo == 'partida';
+    // Sonido de fin de partida: victoria o derrota.
+    if (esPartida) {
+      _reproducirEfecto(
+          ganaMiEquipo ? 'chacaras.mp3' : 'se_me_fue_el_baifo.mp3');
+    }
+    final misChicos = miEquipo == 0 ? _chicosEquipo0 : _chicosEquipo1;
+    final chicosRival = miEquipo == 0 ? _chicosEquipo1 : _chicosEquipo0;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => DialogoFinManoEquipos(
+        gano: ganaMiEquipo,
+        huboChico: esChico,
+        finPartida: esPartida,
+        piedrasSumadas: _piedrasSumadasDialogo,
+        chicosYo: misChicos,
+        chicosRival: chicosRival,
+        ganadorEsYo: ganaMiEquipo,
+        onContinuar: () {
+          Navigator.pop(context);
+          _pendienteDialogo = 'ninguno';
+          if (_soyAnfitrion || !_enRed) {
+            if (esPartida) {
+              _chicosEquipo0 = 0;
+              _chicosEquipo1 = 0;
+            }
+            _repartirNuevaRonda();
+          }
+        },
+        onSalir: esPartida
+            ? () => Navigator.of(context).popUntil((r) => r.isFirst)
+            : null,
+      ),
+    );
+  }
+
+  // El equipo del jugador local (0 o 1).
+  int _miEquipo() {
+    final cfg = widget.config;
+    if (cfg == null) return 0;
+    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    if (miAsiento < cfg.jugadores.length) {
+      return cfg.jugadores[miAsiento].equipo;
+    }
+    return miAsiento % 2;
+  }
+
+  // Mensaje del turno actual, según quién soy yo.
+  String _mensajeTurno() {
+    final miAsiento = _enRed
+        ? (_soyAnfitrion ? 0 : _miAsientoEnRed())
+        : 0;
+    if (_turno == miAsiento) return '¡Tu turno!';
+    return 'Turno de ${_nombrePosicion(_turno)}';
+  }
+
+  void _decidirTumboEquipo(bool juega) {
+    if (_soyAnfitrion) {
+      _anfitrionResuelveTumboEquipo(juega);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.decisionTumbo, {'juega': juega}).codificar());
+    }
+  }
+
+  void _anfitrionResuelveTumboEquipo(bool juega) {
+    if (_equipoDecideTumbo == -1) return;
+    final quien = _equipoDecideTumbo;
+    if (juega) {
+      _manoEsDeTumbo = true;
+      _equipoDecideTumbo = -1;
+      final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
+      _mensaje = '$nombre juega el tumbo (vale 3)';
+    } else {
+      final rival = quien == 0 ? 1 : 0;
+      if (rival == 0) {
+        _piedrasEquipo0 += 1;
+      } else {
+        _piedrasEquipo1 += 1;
+      }
+      _equipoDecideTumbo = -1;
+      final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
+      _mensaje = '$nombre se retira. Rival +1 piedra.';
+      // El rival gana 1 piedra y la mano termina: usar el flujo del dialogo.
+      _ganadorDialogoEquipo = rival;
+      _piedrasSumadasDialogo = 1;
+      _comprobarFinYMostrarDialogo();
+      return;
+    }
+    setState(() {});
+    _enviarEstadoJuego();
+  }
+
   void _repartirNuevaRonda() {
+    _reproducirEfecto('sonido_reparto.mp3');
+    // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
     _paloVirado = reparto.paloVirado;
     _vira = reparto.vira;
     _baza = [];
-    _turno = 0;
+    _nivelApuesta = 0;
+    _enviteCantado = false;
+    _equipoCanto = -1;
+    _nivelPropuesto = 0;
+    _equipoTurnoApuesta = -1;
+    _manoEsDeTumbo = false;
+    _equipoDecideTumbo = -1;
+    _turno = _siguienteEnCirculo(_barajador); // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
+    _bazasAsiento = List.filled(_numJug, 0);
     _rondaTerminada = false;
-    _mensaje = '¡Tu turno!';
+    _mensaje = _mensajeTurno();
+    _mensajeEsTurno = true;
+    // Tumbo: comprobar si algún equipo tiene exactamente 11 piedras.
+    final eq0EnTumbo = _piedrasEquipo0 == 11;
+    final eq1EnTumbo = _piedrasEquipo1 == 11;
+    if (eq0EnTumbo && eq1EnTumbo) {
+      _manoEsDeTumbo = true;
+      _mensaje = '🔥 ¡Tumbo forzoso! Los dos equipos a 11.';
+    } else if (eq0EnTumbo) {
+      _equipoDecideTumbo = 0;
+      _mensaje = '🔥 Equipo A a 11 piedras. ¿Juegan el tumbo?';
+    } else if (eq1EnTumbo) {
+      _equipoDecideTumbo = 1;
+      _mensaje = '🔥 Equipo B a 11 piedras. ¿Juegan el tumbo?';
+    }
     setState(() {});
     _continuarSiTocaIA();
+    _quizaDecideTumboIA();
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+  }
+
+  // Si el equipo que decide el tumbo es solo IA, decide automaticamente.
+  void _quizaDecideTumboIA() {
+    if (_enRed && !_soyAnfitrion) return;
+    if (_equipoDecideTumbo == -1) return;
+    final equipo = _equipoDecideTumbo;
+    if (!_equipoEsSoloIA(equipo)) return;
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted || _equipoDecideTumbo != equipo) return;
+      final juega = _iaDecideTumbo(equipo);
+      _anfitrionResuelveTumboEquipo(juega);
+    });
+  }
+
+  // Decision IA del tumbo: juega si tiene mano fuerte (triunfo alto o fija).
+  bool _iaDecideTumbo(int equipo) {
+    int mejores = 0;
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipo) continue;
+      for (final cc in _manos[a]) {
+        final p = TrickEngine4v4.puntuacionPublica(cc, _paloVirado, cc.suit);
+        if (p >= 500) mejores++;
+      }
+    }
+    if (mejores >= 2) return _random44.nextDouble() < 0.7;
+    if (mejores == 1) return _random44.nextDouble() < 0.4;
+    return _random44.nextDouble() < 0.15;
   }
 
   List<CardModel> _validasDe(int asiento) {
+    if (_equipoDecideTumbo != -1) return [];
+    // En red, el invitado calcula sus válidas sobre su mano recibida.
+    final List<CardModel> mano;
+    if (_enRed && !_soyAnfitrion) {
+      mano = _miManoRed;
+    } else if (asiento < _manos.length) {
+      mano = _manos[asiento];
+    } else {
+      return <CardModel>[];
+    }
     final paloInicial = _baza.isEmpty ? null : _baza.first.carta.suit;
-    return TrickEngine2v2.cartasValidas(
-      mano: _manos[asiento],
+    return TrickEngine4v4.cartasValidas(
+      mano: mano,
       paloInicialBaza: paloInicial,
       paloVirado: _paloVirado,
+      baza: _baza,
+      asiento: asiento,
+      equipoDe: _equipoDeAsiento,
     );
   }
 
+  // Mi asiento en la partida (índice en la config cuyo id == idLocal).
+  int _miAsientoEnRed() {
+    final cfg = widget.config!;
+    for (int i = 0; i < cfg.jugadores.length; i++) {
+      if (cfg.jugadores[i].id == cfg.idLocal) return i;
+    }
+    return 0;
+  }
+
   void _jugarCartaHumano(CardModel carta) {
+    if (_enRed && !_soyAnfitrion) {
+      // El invitado manda su carta al anfitrión (no la juega local).
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.jugarCarta, {
+          'carta': TraductorCartas.aTexto(carta),
+          'asiento': _miAsientoEnRed(),
+        }).codificar());
+      return;
+    }
     if (_turno != 0 || _rondaTerminada) return;
     final validas = _validasDe(0);
     if (!validas.contains(carta)) {
@@ -91,64 +726,95 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     if (_baza.length == _numJug) {
       _resolverBaza();
     } else {
-      _turno = (_turno + 1) % _numJug;
+      _turno = _siguienteEnCirculo(_turno);
+      _mensaje = _mensajeTurno();
+      _mensajeEsTurno = true;
       setState(() {});
+      if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       _continuarSiTocaIA();
     }
   }
 
   void _continuarSiTocaIA() {
     if (_rondaTerminada) return;
-    if (_turno == 0) return;
     if (_baza.length == _numJug) return;
+    if (_enRed) {
+      if (!_soyAnfitrion) return;
+      final cfg = widget.config!;
+      if (_turno >= cfg.jugadores.length) return;
+      if (!cfg.jugadores[_turno].esIA) return;
+    } else {
+      if (_turno == 0) return;
+    }
 
-    Future.delayed(const Duration(milliseconds: 700), () {
+    Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
+      // Antes de jugar, la IA considera proponer un envite.
+      if (_iaConsideraEnvite(asiento)) return; // canto: espera respuesta
       final validas = _validasDe(asiento);
-      final carta = AiPlayer2v2.elegirCarta(
+      final carta = AiPlayer4v4.elegirCarta(
         miAsiento: asiento,
         validas: validas,
         bazaActual: _baza,
         paloVirado: _paloVirado,
+        equipoDe: _equipoDeAsiento,
       );
       _jugarCarta(asiento, carta);
     });
   }
 
   void _resolverBaza() {
-    final ganador = TrickEngine2v2.determinarGanador(
+    final ganador = TrickEngine4v4.determinarGanador(
       jugadas: _baza,
       paloVirado: _paloVirado,
     );
-    final equipoGanador = ganador.asiento % 2;
+    final equipoGanador = _equipoDeAsiento(ganador.asiento);
     if (equipoGanador == 0) {
       _manosEquipo0++;
     } else {
       _manosEquipo1++;
     }
-    _mensaje = '${_nombreAsiento(ganador.asiento)} gana la mano';
+    if (ganador.asiento < _bazasAsiento.length) {
+      _bazasAsiento[ganador.asiento]++;
+    }
+    _mensaje = '${_nombrePosicion(ganador.asiento)} gana la mano';
+    _mensajeEsTurno = false;
     _turno = ganador.asiento;
 
     setState(() {});
 
     // Pausa para que se vea la baza completa antes de limpiarla.
-    Future.delayed(const Duration(milliseconds: 1100), () {
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
       _baza = [];
+      _reproducirEfecto('sonido_recoger_baraja.mp3');
+      // La mano se gana al llegar a 2 bazas (no hace falta jugar la 3a).
+      // Si se acaban las cartas sin que nadie llegue a 2 (no deberia pasar
+      // en 2 de 3), tambien se cierra.
       final cartasRestantes = _manos.fold<int>(0, (s, m) => s + m.length);
-      if (cartasRestantes == 0) {
+      final hayGanador2Bazas = _manosEquipo0 >= 2 || _manosEquipo1 >= 2;
+      if (hayGanador2Bazas || cartasRestantes == 0) {
         _rondaTerminada = true;
-        _mensaje = _manosEquipo0 > _manosEquipo1
-            ? '¡TU EQUIPO gana la ronda! ($_manosEquipo0 - $_manosEquipo1)'
-            : 'Equipo rival gana la ronda ($_manosEquipo0 - $_manosEquipo1)';
+        _barajador = _siguienteEnCirculo(_barajador); // rota para la próxima mano
+        _finalizarRondaEquipos();
       }
       setState(() {});
+      if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
       if (!_rondaTerminada) _continuarSiTocaIA();
     });
   }
 
   String _nombreAsiento(int asiento) {
+    // Si hay config de sala, usar el apodo real del jugador en ese asiento.
+    final cfg = widget.config;
+    if (cfg != null) {
+      for (final j in cfg.jugadores) {
+        if (j.asiento == asiento) return j.nombre;
+      }
+    }
+    // Sin config (modo local de prueba): etiquetas genéricas.
     switch (asiento) {
       case 0:
         return 'Tú';
@@ -162,6 +828,57 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   // Carta jugada por un asiento en la baza actual (o null si no ha jugado).
+  // Mi asiento absoluto (0 si soy anfitrión o modo local).
+  int get _miAsientoBase =>
+      (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+
+  // Asiento absoluto que se dibuja en una POSICIÓN visual.
+  // posición 0 = abajo (yo), 1 = izq, 2 = arriba, 3 = der.
+  // Orden de los asientos alrededor de la mesa (círculo), empezando por
+  // cualquiera y girando. Para 6 jugadores: 0,1,3,2,4,5.
+  // pos 0 = yo (abajo), y girando: izq-abajo, izq-arriba, arriba,
+  // der-arriba, der-abajo.
+  static const List<int> _ordenCircular8 = [0, 1, 3, 2, 4, 5, 7, 6];
+
+  // Siguiente asiento en el orden de juego (círculo de la mesa).
+  int _siguienteEnCirculo(int asiento) {
+    if (_numJug != 8) return (asiento + 1) % _numJug;
+    final idx = _ordenCircular8.indexOf(asiento);
+    if (idx == -1) return (asiento + 1) % _numJug;
+    return _ordenCircular8[(idx + 1) % 8];
+  }
+
+  int _asientoEnPos(int posicion) {
+    if (_numJug == 8) {
+      // Localizo mi asiento dentro del orden circular y avanzo 'posicion'.
+      final miIdx = _ordenCircular8.indexOf(_miAsientoBase);
+      if (miIdx == -1) {
+        return (_miAsientoBase + posicion) % _numJug; // fallback
+      }
+      final idx = (miIdx + posicion) % 8;
+      return _ordenCircular8[idx];
+    }
+    // Otros tamaños: rotación lineal simple.
+    return (_miAsientoBase + posicion) % _numJug;
+  }
+
+  // ¿El jugador en esta posición de pantalla es de mi equipo?
+  bool _esCompaneroPos(int posicion) {
+    final asiento = _asientoEnPos(posicion);
+    return _equipoDeAsiento(asiento) == _miEquipo();
+  }
+
+  // Equipo (0/1) de un asiento, según la config de la sala o paridad.
+  int _equipoDeAsiento(int asiento) {
+    final cfg = widget.config;
+    if (cfg != null) {
+      for (final j in cfg.jugadores) {
+        if (j.asiento == asiento) return j.equipo;
+      }
+    }
+    return asiento % 2;
+  }
+
   CardModel? _cartaEnMesaDe(int asiento) {
     for (final j in _baza) {
       if (j.asiento == asiento) return j.carta;
@@ -171,9 +888,13 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final misCartas = _manos.isNotEmpty ? _manos[0] : <CardModel>[];
-    final validas =
-        _turno == 0 && !_rondaTerminada ? _validasDe(0) : <CardModel>[];
+    final misCartas = (_enRed && !_soyAnfitrion)
+        ? _miManoRed
+        : (_manos.isNotEmpty ? _manos[0] : <CardModel>[]);
+    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
+    final validas = _turno == miAsiento && !_rondaTerminada
+        ? _validasDe(miAsiento)
+        : <CardModel>[];
 
     return Scaffold(
       body: Stack(
@@ -196,20 +917,50 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
                 // Barra superior: volver + marcador
                 _barraSuperior(),
 
-                // Compañero (arriba)
-                _jugadorRival(asiento: 2, etiqueta: 'Compañero', esCompanero: true),
-
-                // Zona central: rivales a los lados + cartas jugadas
+                // Arriba (pos 4): jugador del fondo, centrado.
+                _jugadorRival(
+                    asiento: _asientoEnPos(4),
+                    etiqueta: _nombrePosicion(_asientoEnPos(4)),
+                    esCompanero: _esCompaneroPos(4)),
+                // Zona central: 3 jugadores a cada lado + cartas jugadas.
                 Expanded(
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _jugadorRivalLateral(asiento: 1, etiqueta: 'Rival'),
+                      // Izquierda: pos 3 (arriba), 2 (medio), 1 (abajo).
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(3),
+                              etiqueta: _nombrePosicion(_asientoEnPos(3))),
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(2),
+                              etiqueta: _nombrePosicion(_asientoEnPos(2))),
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(1),
+                              etiqueta: _nombrePosicion(_asientoEnPos(1))),
+                        ],
+                      ),
                       Expanded(child: _zonaCentral()),
-                      _jugadorRivalLateral(asiento: 3, etiqueta: 'Rival'),
+                      // Derecha: pos 5 (arriba), 6 (medio), 7 (abajo).
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(5),
+                              etiqueta: _nombrePosicion(_asientoEnPos(5))),
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(6),
+                              etiqueta: _nombrePosicion(_asientoEnPos(6))),
+                          _jugadorRivalLateral(
+                              asiento: _asientoEnPos(7),
+                              etiqueta: _nombrePosicion(_asientoEnPos(7))),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-
                 // Mensaje de estado
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 4),
@@ -225,10 +976,21 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
                   ),
                 ),
 
-                // Tus cartas (abajo, en abanico)
+                // Tumbo pendiente
+                _botonesTumbo(),
+                // Botones del envite (cantar/subir/responder)
+                _botonesEnvite(),
+                // Tus cartas (abajo) + tu pila de bazas
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
-                  child: _misCartasAbanico(misCartas, validas),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _pilaJugador(_asientoEnPos(0), escala: 0.5),
+                      Flexible(child: _misCartasAbanico(misCartas, validas)),
+                    ],
+                  ),
                 ),
 
                 if (_rondaTerminada)
@@ -252,15 +1014,19 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   Widget _barraSuperior() {
+    final misPiedras = _miEquipo() == 0 ? _piedrasEquipo0 : _piedrasEquipo1;
+    final piedrasRival = _miEquipo() == 0 ? _piedrasEquipo1 : _piedrasEquipo0;
+    final misChicos = _miEquipo() == 0 ? _chicosEquipo0 : _chicosEquipo1;
+    final chicosRival = _miEquipo() == 0 ? _chicosEquipo1 : _chicosEquipo0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
       child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              width: 38,
-              height: 38,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: Colors.black38,
                 borderRadius: BorderRadius.circular(8),
@@ -268,55 +1034,112 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
               child: const Icon(Icons.chevron_left, color: Colors.white),
             ),
           ),
+          const SizedBox(width: 6),
+          // NOSOTROS (azul)
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: _panelMarcador(
+              titulo: 'NOSOTROS',
+              piedras: misPiedras,
+              colorTop: const Color(0xFF2E78C9),
+              colorBottom: const Color(0xFF154A82),
+              colorTitulo: const Color(0xFFE6F1FB),
+              colorPiedras: const Color(0xFFCFE3F7),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // chicos (negro)
+          Container(
+            width: 54,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF2A2A2A), Color(0xFF111111)],
+              ),
+              border: Border.all(color: Colors.white12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
               children: [
-                _marcadorEquipo('NOSOTROS', _manosEquipo0, Colors.lightBlueAccent),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Column(
-                    children: [
-                      const Text('Triunfo',
-                          style: TextStyle(color: Colors.white60, fontSize: 10)),
-                      Text(_vira.suit.displayName,
-                          style: const TextStyle(
-                              color: Colors.amber,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ],
-                  ),
-                ),
-                _marcadorEquipo('ELLOS', _manosEquipo1, Colors.redAccent),
+                Text('$misChicos - $chicosRival',
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 2),
+                const Text('chicos',
+                    style: TextStyle(fontSize: 8, color: Color(0xFFB4B2A9))),
               ],
             ),
           ),
-          const SizedBox(width: 38),
+          const SizedBox(width: 6),
+          // ELLOS (rojo)
+          Expanded(
+            child: _panelMarcador(
+              titulo: 'ELLOS',
+              piedras: piedrasRival,
+              colorTop: const Color(0xFFC24747),
+              colorBottom: const Color(0xFF8F2424),
+              colorTitulo: const Color(0xFFFCEBEB),
+              colorPiedras: const Color(0xFFF7C1C1),
+            ),
+          ),
+          const SizedBox(width: 6),
         ],
       ),
     );
   }
 
-  Widget _marcadorEquipo(String titulo, int valor, Color color) {
-    return Column(
-      children: [
-        Text(titulo,
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-        Text('$valor',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-      ],
+  Widget _panelMarcador({
+    required String titulo,
+    required int piedras,
+    required Color colorTop,
+    required Color colorBottom,
+    required Color colorTitulo,
+    required Color colorPiedras,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [colorTop, colorBottom],
+        ),
+        border: Border.all(color: Colors.white24),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      child: Column(
+        children: [
+          Text(titulo, style: TextStyle(fontSize: 11, color: colorTitulo)),
+          const SizedBox(height: 6),
+          Garbanzos(piedras: piedras, color: const Color(0xFFE3C28A)),
+          const SizedBox(height: 6),
+          Text('$piedras piedras',
+              style: TextStyle(fontSize: 9, color: colorPiedras)),
+        ],
+      ),
     );
   }
 
-  // Compañero arriba: cartas boca abajo en mini.
+  // Numero de cartas que tiene un asiento (en red usa lo recibido).
+  int _cartasDe(int asiento) {
+    if (_enRed && !_soyAnfitrion) {
+      if (asiento < _numCartasPorAsiento.length) {
+        return _numCartasPorAsiento[asiento];
+      }
+      return 0;
+    }
+    return _manos.isNotEmpty ? _manos[asiento].length : 0;
+  }
+
   Widget _jugadorRival({
     required int asiento,
     required String etiqueta,
     bool esCompanero = false,
   }) {
-    final numCartas = _manos.isNotEmpty ? _manos[asiento].length : 0;
+    final numCartas = _cartasDe(asiento);
     final esTurno = _turno == asiento && !_rondaTerminada;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -338,7 +1161,14 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
             ),
           ),
           const SizedBox(height: 4),
-          _miniCartasBocaAbajo(numCartas),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _pilaJugador(asiento),
+              _miniCartasBocaAbajo(numCartas),
+            ],
+          ),
         ],
       ),
     );
@@ -346,7 +1176,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
 
   // Rivales laterales: etiqueta + cartas boca abajo en vertical mini.
   Widget _jugadorRivalLateral({required int asiento, required String etiqueta}) {
-    final numCartas = _manos.isNotEmpty ? _manos[asiento].length : 0;
+    final numCartas = _cartasDe(asiento);
     final esTurno = _turno == asiento && !_rondaTerminada;
     return SizedBox(
       width: 56,
@@ -370,8 +1200,19 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
           ),
           const SizedBox(height: 4),
           _miniCartasBocaAbajo(numCartas, pequeno: true),
+          _pilaJugador(asiento, escala: 0.32),
         ],
       ),
+    );
+  }
+
+  // Mini pila de bazas ganadas por un jugador concreto.
+  Widget _pilaJugador(int asiento, {double escala = 0.42}) {
+    final n = asiento < _bazasAsiento.length ? _bazasAsiento[asiento] : 0;
+    if (n <= 0) return const SizedBox.shrink();
+    return Transform.scale(
+      scale: escala,
+      child: PilaGanada(cantidad: n, label: ''),
     );
   }
 
@@ -408,14 +1249,44 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Compañero (arriba)
-        Align(alignment: Alignment.topCenter, child: _cartaJugadaMini(2)),
-        // Rival izq
-        Align(alignment: Alignment.centerLeft, child: _cartaJugadaMini(1)),
-        // Rival der
-        Align(alignment: Alignment.centerRight, child: _cartaJugadaMini(3)),
-        // Tú (abajo)
-        Align(alignment: Alignment.bottomCenter, child: _cartaJugadaMini(0)),
+        // La VIRA (triunfo) en el centro, detrás de las cartas jugadas.
+        Align(
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 66,
+                height: 104,
+                child: FittedBox(child: CardWidget(card: _vira)),
+              ),
+            ],
+          ),
+        ),
+        // pos 0 = tú (abajo)
+        Align(alignment: Alignment.bottomCenter,
+            child: _cartaJugadaMini(_asientoEnPos(0))),
+        // pos 1 = izq-abajo
+        Align(alignment: const Alignment(-1.0, 0.7),
+            child: _cartaJugadaMini(_asientoEnPos(1))),
+        // pos 2 = izq-medio
+        Align(alignment: const Alignment(-1.0, 0.0),
+            child: _cartaJugadaMini(_asientoEnPos(2))),
+        // pos 3 = izq-arriba
+        Align(alignment: const Alignment(-1.0, -0.7),
+            child: _cartaJugadaMini(_asientoEnPos(3))),
+        // pos 4 = arriba
+        Align(alignment: Alignment.topCenter,
+            child: _cartaJugadaMini(_asientoEnPos(4))),
+        // pos 5 = der-arriba
+        Align(alignment: const Alignment(1.0, -0.7),
+            child: _cartaJugadaMini(_asientoEnPos(5))),
+        // pos 6 = der-medio
+        Align(alignment: const Alignment(1.0, 0.0),
+            child: _cartaJugadaMini(_asientoEnPos(6))),
+        // pos 7 = der-abajo
+        Align(alignment: const Alignment(1.0, 0.7),
+            child: _cartaJugadaMini(_asientoEnPos(7))),
       ],
     );
   }
@@ -430,6 +1301,122 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
         height: 95,
         child: FittedBox(child: CardWidget(card: carta)),
       ),
+    );
+  }
+
+  // Nombre del nivel de apuesta propuesto.
+  String _nombreNivel(int nivel) {
+    const nombres = ['Base', 'Envido', 'Siete', 'Nueve', 'Chico fuera'];
+    if (nivel >= 0 && nivel < nombres.length) return nombres[nivel];
+    return '';
+  }
+
+  Widget _botonesTumbo() {
+    if (_equipoDecideTumbo == -1) return const SizedBox.shrink();
+    final miEquipo = _miEquipo();
+    if (miEquipo == _equipoDecideTumbo) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () => _decidirTumboEquipo(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('🔥 JUGAR TUMBO (3)',
+                  style: TextStyle(color: Colors.white)),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () => _decidirTumboEquipo(false),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+              child: const Text('RETIRARME',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '🔥 El equipo rival decide el tumbo...',
+        style: const TextStyle(color: Colors.orange, fontStyle: FontStyle.italic),
+      ),
+    );
+  }
+
+  // Fila de botones del envite según el estado.
+  // Fila de botones del envite, al estilo 1v1 pero por equipo.
+  Widget _botonesEnvite() {
+    if (_rondaTerminada || _equipoDecideTumbo != -1) {
+      return const SizedBox.shrink();
+    }
+    const nombres = ['Base', 'ENVIDO', 'SIETE', 'NUEVE', 'CHICO FUERA'];
+
+    // CASO A: hay envite y mi equipo debe responder (no fue el que canto).
+    if (_enviteCantado && _equipoCanto != _miEquipo()) {
+      final puedeSubir = _nivelPropuesto < 4;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Text('El rival canta ${nombres[_nivelPropuesto]}',
+                style: const TextStyle(
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                _botonEnvite('JUEGO', Colors.green,
+                    () => _responderEnvite('juego')),
+                _botonEnvite('NO QUIERO', Colors.red,
+                    () => _responderEnvite('paso')),
+                if (puedeSubir)
+                  _botonEnvite(nombres[_nivelPropuesto + 1], Colors.orange,
+                      () => _responderEnvite('subir')),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // CASO B: mi equipo canto y espera respuesta del rival.
+    if (_enviteCantado && _equipoCanto == _miEquipo()) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Text('Esperando respuesta del rival...',
+            style: TextStyle(color: Colors.white70, fontSize: 12)),
+      );
+    }
+
+    // CASO C: no hay envite pendiente -> puedo cantar el siguiente nivel.
+    if (_puedoCantar) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: _botonEnvite(
+            nombres[_nivelApuesta + 1], Colors.amber, _cantarEnvite),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _botonEnvite(String texto, Color color, VoidCallback onTap) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 32),
+      ),
+      child: Text(texto,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -488,5 +1475,226 @@ class _Abanico2v2 extends StatelessWidget {
         }),
       ),
     );
+  }
+}
+class DialogoFinManoEquipos extends StatelessWidget {
+  final bool gano;
+  final bool huboChico;
+  final bool finPartida;
+  final int piedrasSumadas;
+  final int chicosYo;
+  final int chicosRival;
+  final bool ganadorEsYo;
+  final VoidCallback onContinuar;
+  final VoidCallback? onSalir;
+
+  const DialogoFinManoEquipos({
+    super.key,
+    required this.gano,
+    required this.huboChico,
+    required this.finPartida,
+    required this.piedrasSumadas,
+    required this.chicosYo,
+    required this.chicosRival,
+    required this.ganadorEsYo,
+    required this.onContinuar,
+    this.onSalir,
+  });
+
+  Widget _garbanzo() {
+    return Container(
+      width: 16,
+      height: 13,
+      decoration: BoxDecoration(
+        color: const Color(0xFFC9A24A),
+        border: Border.all(color: const Color(0xFF7A5A28), width: 1.5),
+        borderRadius: BorderRadius.circular(7),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: huboChico ? const Color(0xFFC8870F) : const Color(0xFF8A6A35),
+            width: huboChico ? 3 : 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (finPartida)
+              ..._contenidoPartida()
+            else if (huboChico)
+              ..._contenidoChico()
+            else
+              ..._contenidoMano(),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: onContinuar,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                ),
+                child: Text(
+                  finPartida
+                      ? 'Nueva partida'
+                      : (huboChico ? 'Empezar nuevo chico' : 'Jugar otra mano'),
+                  style: const TextStyle(
+                    color: Color(0xFF3A2B12),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+            if (onSalir != null) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: onSalir,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0x33000000),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1),
+                  ),
+                  child: const Text(
+                    'Salir al menú',
+                    style: TextStyle(
+                      color: Color(0xFF3A2B12),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _contenidoMano() {
+    return [
+      Text(
+        gano ? '¡TU EQUIPO GANA LA MANO!' : 'EL EQUIPO RIVAL GANA LA MANO',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF3A2B12),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x808A6A35)),
+      const SizedBox(height: 14),
+      Text(
+        gano ? 'Tu equipo suma' : 'El equipo rival suma',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 6,
+        alignment: WrapAlignment.center,
+        children: List.generate(piedrasSumadas.clamp(0, 12), (_) => _garbanzo()),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        '$piedrasSumadas piedras',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoChico() {
+    return [
+      const Text(
+        '★ ★ ★',
+        style: TextStyle(
+          fontSize: 13,
+          color: Color(0xFF995C0A),
+          letterSpacing: 3,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 2),
+      const Text(
+        '¡CHICO!',
+        style: TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 2,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        ganadorEsYo
+            ? 'Tu equipo se lleva el chico'
+            : 'El equipo rival se lleva el chico',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 16),
+      Container(width: 160, height: 1, color: const Color(0x80C8870F)),
+      const SizedBox(height: 14),
+      const Text(
+        'Chicos ganados',
+        style: TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+      const SizedBox(height: 8),
+      const Text('🏆', style: TextStyle(fontSize: 26)),
+      const SizedBox(height: 6),
+      Text(
+        'Tu equipo $chicosYo  ·  Rival $chicosRival',
+        style: const TextStyle(fontSize: 12, color: Color(0xFF6B5424)),
+      ),
+    ];
+  }
+
+  List<Widget> _contenidoPartida() {
+    return [
+      const Text('🏅', style: TextStyle(fontSize: 38)),
+      const SizedBox(height: 6),
+      Text(
+        ganadorEsYo ? '¡GANÁIS LA PARTIDA!' : 'EL EQUIPO RIVAL GANA LA PARTIDA',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontFamily: 'Georgia',
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF9A3A0A),
+          letterSpacing: 1,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Tu equipo $chicosYo  ·  Rival $chicosRival',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+      ),
+    ];
   }
 }
