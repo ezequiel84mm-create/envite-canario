@@ -475,7 +475,14 @@ void _jugadorDesconectado(String idInvitado) {
     }
     setState(() {});
     _enviarEstadoJuego();
-    if (_enviteCantado) _quizaRespondeIA();
+    if (_enviteCantado) {
+      // Sigue habiendo envite pendiente: que responda la IA si toca.
+      _quizaRespondeIA();
+    } else {
+      // El envite se resolvio y la mano sigue: reanudar el turno de juego
+      // (la IA que canto el envite aun no jugo su carta).
+      _continuarSiTocaIA();
+    }
   }
 
 
