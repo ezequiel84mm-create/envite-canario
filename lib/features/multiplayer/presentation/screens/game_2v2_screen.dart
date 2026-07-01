@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../sala/domain/models/config_partida.dart';
@@ -17,6 +18,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
 import '../widgets/widgets_mesa.dart';
+import '../widgets/rueda_senas.dart';
+import '../../domain/models/senas.dart';
 
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
@@ -43,6 +46,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   int _manosEquipo1 = 0;
   // Bazas ganadas por cada jugador (asiento 0..numJug-1).
   List<int> _bazasAsiento = [0, 0, 0, 0];
+  final Map<int, String> _senaVisible = {};
+  final List<MapEntry<int, String>> _colaSenas = [];
+  bool _mostrandoSena = false;
   // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
   int _piedrasEquipo0 = 0;
   int _piedrasEquipo1 = 0;
@@ -146,6 +152,12 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
           _anfitrionResuelveRespuesta(msg.datos['accion']);
         } else if (msg.tipo == TipoMensajeSala.decisionTumbo) {
           _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
+        } else if (msg.tipo == TipoMensajeSala.enviarSena) {
+          final asiento = msg.datos['asiento'];
+          final senaId = msg.datos['sena'];
+          if (asiento != null && senaId != null) {
+            _procesarSena(asiento, senaId);
+          }
         }
       };
       // Si un invitado se cae a media partida, su asiento pasa a IA.
@@ -160,6 +172,15 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
         if (msg == null) return;
         if (msg.tipo == TipoMensajeSala.estadoJuego) {
           _invitadoRecibeEstado(msg.datos);
+        } else if (msg.tipo == TipoMensajeSala.enviarSena) {
+          final asiento = msg.datos['asiento'];
+          final senaId = msg.datos['sena'];
+          final ver = msg.datos['ver'] == true;
+          final s = senaId != null ? senaPorId(senaId) : null;
+          if (s != null) {
+            if (s.sonido) _reproducirEfecto('silbido.m4a');
+            if (ver && asiento != null) _mostrarSenaLocal(asiento, senaId);
+          }
         } else if (msg.tipo == TipoMensajeSala.miMano) {
           setState(() {
             _miManoRed = TraductorCartas.listaDesdeTexto(msg.datos['mano'] ?? []);
@@ -167,6 +188,168 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
         }
       };
     }
+  }
+
+  // ===== SEÑAS ENTRE COMPAÑEROS =====
+
+  void _enviarSena(Sena sena) {
+    final asiento = _miAsientoBase;
+    if (_soyAnfitrion) {
+      _procesarSena(asiento, sena.id);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.enviarSena,
+              {'asiento': asiento, 'sena': sena.id}).codificar());
+    }
+  }
+
+  void _procesarSena(int asiento, String senaId) {
+    final sena = senaPorId(senaId);
+    if (sena == null) return;
+    final equipo = _equipoDeAsiento(asiento);
+    if (sena.sonido) _reproducirEfecto('silbido.m4a');
+    if (_equipoDeAsiento(_miAsientoBase) == equipo) {
+      _mostrarSenaLocal(asiento, senaId);
+    }
+    if (_enRed) {
+      final cfg = widget.config;
+      if (cfg != null) {
+        for (final j in cfg.jugadores) {
+          if (j.esIA) continue;
+          if (j.id == widget.config!.idLocal) continue;
+          final mismoEquipo = _equipoDeAsiento(j.asiento) == equipo;
+          if (mismoEquipo || sena.sonido) {
+            widget.conexion!.enviarA(
+                j.id,
+                MensajeRed(TipoMensajeSala.enviarSena, {
+                  'asiento': asiento,
+                  'sena': senaId,
+                  'ver': mismoEquipo,
+                }).codificar());
+          }
+        }
+      }
+    }
+  }
+
+  void _mostrarSenaLocal(int asiento, String senaId) {
+    _colaSenas.add(MapEntry(asiento, senaId));
+    _procesarColaSenas();
+  }
+
+  void _procesarColaSenas() {
+    if (_mostrandoSena) return;
+    if (_colaSenas.isEmpty) return;
+    _mostrandoSena = true;
+    final entrada = _colaSenas.removeAt(0);
+    final asiento = entrada.key;
+    final senaId = entrada.value;
+    setState(() {
+      _senaVisible[asiento] = senaId;
+    });
+    Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() {
+        _senaVisible.remove(asiento);
+      });
+      Timer(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        _mostrandoSena = false;
+        _procesarColaSenas();
+      });
+    });
+  }
+
+  int _tiempoParaSenas() {
+    if (_enRed && !_soyAnfitrion) return 0;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return 1200;
+    int total = 0;
+    for (int a = 0; a < _numJug; a++) {
+      if (_esIA(a) && a < _manos.length) {
+        total += _senasDeMano(_manos[a]).length;
+      }
+    }
+    if (total == 0) return 1200;
+    final ms = 1000 + total * 1400;
+    return ms > 6000 ? 6000 : ms;
+  }
+
+  void _iaCompanerasSenan() {
+    if (_enRed && !_soyAnfitrion) return;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return;
+    final pendientes = <MapEntry<int, String>>[];
+    for (int asiento = 0; asiento < _numJug; asiento++) {
+      if (!_esIA(asiento)) continue;
+      if (asiento >= _manos.length) continue;
+      for (final senaId in _senasDeMano(_manos[asiento])) {
+        pendientes.add(MapEntry(asiento, senaId));
+      }
+    }
+    if (pendientes.isEmpty) return;
+    _procesarSena(pendientes.first.key, 'silbido');
+    for (final e in pendientes) {
+      _procesarSena(e.key, e.value);
+    }
+  }
+
+  bool _esIA(int asiento) {
+    final cfg = widget.config;
+    if (cfg == null) return asiento != 0;
+    for (final j in cfg.jugadores) {
+      if (j.asiento == asiento) return j.esIA;
+    }
+    return false;
+  }
+
+  // En 2v2 no hay fijas: triunfo = carta del palo virado. Solo se señan
+  // Malilla y Rey (el modelo filtra por aplicaEn(4)).
+  List<String> _senasDeMano(List<CardModel> mano) {
+    final res = <String>[];
+    int triunfos = 0;
+    for (final c in mano) {
+      if (c.suit == _paloVirado) triunfos++;
+      if (c.suit == _paloVirado && c.value == CardValue.dos) {
+        res.add('malilla');
+      } else if (c.suit == _paloVirado && c.value == CardValue.rey) {
+        res.add('rey');
+      } else if (c.suit == _paloVirado && c.value == CardValue.caballo) {
+        res.add('caballo');
+      } else if (c.suit == Suit.oros && c.value == CardValue.sota) {
+        res.add('perica');
+      }
+    }
+    if (triunfos == 0) {
+      res.add('ciego');
+    } else if (triunfos == 3) {
+      res.add('flus');
+    }
+    return res.where((id) {
+      final s = senaPorId(id);
+      return s != null && s.aplicaEn(_numJug);
+    }).toList();
+  }
+
+  Widget _globoSena(int asiento) {
+    final senaId = _senaVisible[asiento];
+    if (senaId == null) return const SizedBox.shrink();
+    final s = senaPorId(senaId);
+    if (s == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(s.emoji, style: const TextStyle(fontSize: 22)),
+    );
   }
 
   void _enviarEstadoJuego() {
@@ -641,6 +824,9 @@ void _jugadorDesconectado(String idInvitado) {
 
   void _repartirNuevaRonda() {
     _reproducirEfecto('sonido_reparto.mp3');
+    _colaSenas.clear();
+    _senaVisible.clear();
+    _mostrandoSena = false;
     // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
@@ -675,9 +861,14 @@ void _jugadorDesconectado(String idInvitado) {
       _mensaje = '🔥 Equipo B a 11 piedras. ¿Juegan el tumbo?';
     }
     setState(() {});
-    _continuarSiTocaIA();
-    _quizaDecideTumboIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+    _iaCompanerasSenan();
+    final tiempoSenas = _tiempoParaSenas();
+    Timer(Duration(milliseconds: tiempoSenas), () {
+      if (!mounted || _rondaTerminada) return;
+      _continuarSiTocaIA();
+      _quizaDecideTumboIA();
+    });
   }
 
   // Si el equipo que decide el tumbo es solo IA, decide automaticamente.
@@ -943,6 +1134,7 @@ void _jugadorDesconectado(String idInvitado) {
                 _botonesTumbo(),
                 // Botones del envite (cantar/subir/responder)
                 _botonesEnvite(),
+                Center(child: _globoSena(_asientoEnPos(0))),
                 // Tus cartas (abajo) + tu pila de bazas
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
@@ -971,6 +1163,15 @@ void _jugadorDesconectado(String idInvitado) {
               ],
             ),
           ),
+          if (_enRed)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: RuedaSenas(
+                numJugadores: _numJug,
+                onEnviar: _enviarSena,
+              ),
+            ),
         ],
       ),
     );
@@ -1108,6 +1309,7 @@ void _jugadorDesconectado(String idInvitado) {
       padding: const EdgeInsets.only(top: 6),
       child: Column(
         children: [
+          _globoSena(asiento),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
@@ -1146,6 +1348,7 @@ void _jugadorDesconectado(String idInvitado) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          _globoSena(asiento),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
