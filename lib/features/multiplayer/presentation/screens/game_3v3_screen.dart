@@ -769,15 +769,37 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       _mensaje = '🔥 Equipo B a 11 piedras. ¿Juegan el tumbo?';
     }
     setState(() {});
-    _continuarSiTocaIA();
-    _quizaDecideTumboIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
-    // Tus compañeros IA te señan sus cartas relevantes (en cola).
+    // Primero las IA señan sus cartas; la primera jugada espera un poco
+    // para que dé tiempo a ver las señas antes de que arranque la mano.
     _iaCompanerasSenan();
+    final tiempoSenas = _tiempoParaSenas();
+    Timer(Duration(milliseconds: tiempoSenas), () {
+      if (!mounted || _rondaTerminada) return;
+      _continuarSiTocaIA();
+      _quizaDecideTumboIA();
+    });
   }
 
   // Cada IA compañera tuya encola señas según las cartas que tiene.
   // Solo las procesa el cerebro (anfitrión o modo local).
+  // Cuánto esperar antes de la primera jugada, según cuántas señas hay
+  // (para que dé tiempo a verlas). Con un tope para no alargar demasiado.
+  int _tiempoParaSenas() {
+    if (_enRed && !_soyAnfitrion) return 0;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return 1200;
+    int total = 0;
+    for (int a = 0; a < _numJug; a++) {
+      if (_esIA(a) && a < _manos.length) {
+        total += _senasDeMano(_manos[a]).length;
+      }
+    }
+    if (total == 0) return 1200; // sin señas: el delay normal de la IA
+    // silbido + señas, ~1.4s cada globo; tope de 6 segundos.
+    final ms = 1000 + total * 1400;
+    return ms > 6000 ? 6000 : ms;
+  }
+
   void _iaCompanerasSenan() {
     // Solo el cerebro (anfitrión o modo local) genera las señas de las IA.
     if (_enRed && !_soyAnfitrion) return;
