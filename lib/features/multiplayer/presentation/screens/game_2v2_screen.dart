@@ -616,6 +616,11 @@ void _jugadorDesconectado(String idInvitado) {
       _equipoDecideTumbo = -1;
       final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
       _mensaje = '$nombre juega el tumbo (vale 3)';
+      // La mano de tumbo arranca: si le toca salir a una IA, que juegue.
+      setState(() {});
+      _enviarEstadoJuego();
+      _continuarSiTocaIA();
+      return;
     } else {
       final rival = quien == 0 ? 1 : 0;
       if (rival == 0) {
@@ -632,8 +637,6 @@ void _jugadorDesconectado(String idInvitado) {
       _comprobarFinYMostrarDialogo();
       return;
     }
-    setState(() {});
-    _enviarEstadoJuego();
   }
 
   void _repartirNuevaRonda() {

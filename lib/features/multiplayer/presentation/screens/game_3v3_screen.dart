@@ -596,6 +596,11 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       _equipoDecideTumbo = -1;
       final nombre = quien == 0 ? 'Equipo A' : 'Equipo B';
       _mensaje = '$nombre juega el tumbo (vale 3)';
+      // La mano de tumbo arranca: si le toca salir a una IA, que juegue.
+      setState(() {});
+      _enviarEstadoJuego();
+      _continuarSiTocaIA();
+      return;
     } else {
       final rival = quien == 0 ? 1 : 0;
       if (rival == 0) {
@@ -612,8 +617,6 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       _comprobarFinYMostrarDialogo();
       return;
     }
-    setState(() {});
-    _enviarEstadoJuego();
   }
 
   void _repartirNuevaRonda() {
