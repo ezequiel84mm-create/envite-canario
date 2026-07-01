@@ -274,6 +274,20 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     return ms > 6000 ? 6000 : ms;
   }
 
+  // ¿Hay algún jugador humano en este equipo? (para que las IA solo
+  // señen cuando tienen un compañero humano que aproveche las señas).
+  bool _equipoTieneHumano(int equipo) {
+    final cfg = widget.config;
+    if (cfg == null) {
+      // Modo local (sin sala): el humano eres tú, asiento 0.
+      return _equipoDeAsiento(0) == equipo;
+    }
+    for (final j in cfg.jugadores) {
+      if (!j.esIA && _equipoDeAsiento(j.asiento) == equipo) return true;
+    }
+    return false;
+  }
+
   void _iaCompanerasSenan() {
     if (_enRed && !_soyAnfitrion) return;
     if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return;
@@ -281,6 +295,8 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     for (int asiento = 0; asiento < _numJug; asiento++) {
       if (!_esIA(asiento)) continue;
       if (asiento >= _manos.length) continue;
+      // Una IA solo seña si en su equipo hay algún humano que la lea.
+      if (!_equipoTieneHumano(_equipoDeAsiento(asiento))) continue;
       for (final senaId in _senasDeMano(_manos[asiento])) {
         pendientes.add(MapEntry(asiento, senaId));
       }
