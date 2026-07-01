@@ -731,6 +731,10 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   void _repartirNuevaRonda() {
     _reproducirEfecto('sonido_reparto.mp3');
+    // Limpiar señas de la mano anterior (cola y globos visibles).
+    _colaSenas.clear();
+    _senaVisible.clear();
+    _mostrandoSena = false;
     // (El barajador se habrá rotado al terminar la ronda anterior.)
     final reparto = DealEngine2v2.repartirPara(_numJug);
     _manos = reparto.manos;
@@ -778,44 +782,25 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     // Solo el cerebro (anfitrión o modo local) genera las señas de las IA.
     if (_enRed && !_soyAnfitrion) return;
     if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return;
-    // ¿Hay alguna IA con señas que mandar? Si es así, primero un silbido
-    // para avisar a la mesa de que van a empezar las señas.
-    bool haySenas = false;
-    for (int a = 0; a < _numJug; a++) {
-      if (_esIA(a) && a < _manos.length && _senasDeMano(_manos[a]).isNotEmpty) {
-        haySenas = true;
-        break;
-      }
-    }
-    if (!haySenas) return;
 
-    // Silbido inicial (lo oye toda la mesa, tambien los invitados por red).
-    _procesarSena(_primeraIASenadora(), 'silbido');
-
-    // Tras el silbido, empiezan las señas de las IA (escalonadas).
-    int retardo = 700; // deja sonar el silbido antes de la primera seña
+    // Reunir todas las señas de todas las IA, en orden de asiento.
+    final pendientes = <MapEntry<int, String>>[];
     for (int asiento = 0; asiento < _numJug; asiento++) {
       if (!_esIA(asiento)) continue;
       if (asiento >= _manos.length) continue;
-      final senas = _senasDeMano(_manos[asiento]);
-      for (final senaId in senas) {
-        Timer(Duration(milliseconds: retardo), () {
-          if (!mounted) return;
-          _procesarSena(asiento, senaId);
-        });
-        retardo += 200;
+      for (final senaId in _senasDeMano(_manos[asiento])) {
+        pendientes.add(MapEntry(asiento, senaId));
       }
     }
-  }
+    if (pendientes.isEmpty) return;
 
-  // Devuelve el asiento de la primera IA con señas (para emitir el silbido).
-  int _primeraIASenadora() {
-    for (int a = 0; a < _numJug; a++) {
-      if (_esIA(a) && a < _manos.length && _senasDeMano(_manos[a]).isNotEmpty) {
-        return a;
-      }
+    // Primero un silbido (desde la primera IA con señas) para avisar a la mesa,
+    // y luego todas las señas en orden. Todo pasa por _procesarSena, que
+    // reparte a cada equipo y encola los globos sin solaparse.
+    _procesarSena(pendientes.first.key, 'silbido');
+    for (final e in pendientes) {
+      _procesarSena(e.key, e.value);
     }
-    return 0;
   }
 
   bool _esIA(int asiento) {
