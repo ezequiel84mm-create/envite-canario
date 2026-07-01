@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../sala/domain/models/config_partida.dart';
@@ -18,6 +19,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
 import '../widgets/widgets_mesa.dart';
+import '../widgets/rueda_senas.dart';
+import '../../domain/models/senas.dart';
 
 /// Pantalla del 2vs2 con diseño (Etapa B).
 /// Asientos: 0 = tú (abajo), 1 = rival izq, 2 = compañero (arriba), 3 = rival der.
@@ -44,6 +47,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   int _manosEquipo1 = 0;
   // Bazas ganadas por cada jugador (asiento 0..numJug-1).
   List<int> _bazasAsiento = [0, 0, 0, 0, 0, 0];
+  // Seña visible encima de cada asiento (id de seña) y su timer.
+  final Map<int, String> _senaVisible = {};
+  final Map<int, DateTime> _senaHasta = {};
   // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
   int _piedrasEquipo0 = 0;
   int _piedrasEquipo1 = 0;
@@ -147,6 +153,12 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
           _anfitrionResuelveRespuesta(msg.datos['accion']);
         } else if (msg.tipo == TipoMensajeSala.decisionTumbo) {
           _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
+        } else if (msg.tipo == TipoMensajeSala.enviarSena) {
+          final asiento = msg.datos['asiento'];
+          final senaId = msg.datos['sena'];
+          if (asiento != null && senaId != null) {
+            _procesarSena(asiento, senaId);
+          }
         }
       };
       // Si un invitado se cae a media partida, su asiento pasa a IA.
@@ -161,6 +173,15 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
         if (msg == null) return;
         if (msg.tipo == TipoMensajeSala.estadoJuego) {
           _invitadoRecibeEstado(msg.datos);
+        } else if (msg.tipo == TipoMensajeSala.enviarSena) {
+          final asiento = msg.datos['asiento'];
+          final senaId = msg.datos['sena'];
+          final ver = msg.datos['ver'] == true;
+          final s = senaId != null ? senaPorId(senaId) : null;
+          if (s != null) {
+            if (s.sonido) _reproducirEfecto('silbido.m4a');
+            if (ver && asiento != null) _mostrarSenaLocal(asiento, senaId);
+          }
         } else if (msg.tipo == TipoMensajeSala.miMano) {
           setState(() {
             _miManoRed = TraductorCartas.listaDesdeTexto(msg.datos['mano'] ?? []);
@@ -168,6 +189,79 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
         }
       };
     }
+  }
+
+  // ===== SEÑAS ENTRE COMPAÑEROS =====
+
+  // Llamado por la RuedaSenas cuando el jugador local elige una seña.
+  void _enviarSena(Sena sena) {
+    final asiento = _miAsientoBase;
+    if (_soyAnfitrion) {
+      _procesarSena(asiento, sena.id);
+    } else {
+      // Se la mando al anfitrión, que la repartirá a mi equipo.
+      widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.enviarSena,
+            {'asiento': asiento, 'sena': sena.id}).codificar());
+    }
+  }
+
+  // SOLO el anfitrión: procesa una seña (la muestra a su equipo, suena el
+  // silbido para todos si aplica, y reenvía a los invitados que toque).
+  void _procesarSena(int asiento, String senaId) {
+    final sena = senaPorId(senaId);
+    if (sena == null) return;
+    final equipo = _equipoDeAsiento(asiento);
+
+    // El silbido lo oye TODA la mesa (para confundir).
+    if (sena.sonido) {
+      _reproducirEfecto('silbido.m4a');
+    }
+
+    // Muestro la seña localmente SOLO si soy del mismo equipo que el emisor.
+    if (_equipoDeAsiento(_miAsientoBase) == equipo) {
+      _mostrarSenaLocal(asiento, senaId);
+    }
+
+    if (_enRed) {
+      // Reparto a los invitados: la seña visual solo a los del mismo equipo;
+      // el silbido (sonido) a todos.
+      final cfg = widget.config;
+      if (cfg != null) {
+        for (final j in cfg.jugadores) {
+          if (j.esIA) continue;
+          if (j.id == widget.config!.idLocal) continue;
+          final mismoEquipo = _equipoDeAsiento(j.asiento) == equipo;
+          if (mismoEquipo || sena.sonido) {
+            widget.conexion!.enviarA(
+                j.id,
+                MensajeRed(TipoMensajeSala.enviarSena, {
+                  'asiento': asiento,
+                  'sena': senaId,
+                  // marca si este receptor debe VER el globo o solo oir
+                  'ver': mismoEquipo,
+                }).codificar());
+          }
+        }
+      }
+    }
+  }
+
+  // Muestra el globo de seña encima de un asiento durante unos segundos.
+  void _mostrarSenaLocal(int asiento, String senaId) {
+    setState(() {
+      _senaVisible[asiento] = senaId;
+      _senaHasta[asiento] = DateTime.now().add(const Duration(seconds: 3));
+    });
+    Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      final hasta = _senaHasta[asiento];
+      if (hasta != null && DateTime.now().isBefore(hasta)) return;
+      setState(() {
+        _senaVisible.remove(asiento);
+        _senaHasta.remove(asiento);
+      });
+    });
   }
 
   void _enviarEstadoJuego() {
@@ -1010,6 +1104,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
                 _botonesTumbo(),
                 // Botones del envite (cantar/subir/responder)
                 _botonesEnvite(),
+                // Tu seña (globo) centrada encima de tus cartas.
+                Center(child: _globoSena(_asientoEnPos(0))),
                 // Tus cartas (abajo) + tu pila de bazas
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 10),
@@ -1038,6 +1134,16 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
               ],
             ),
           ),
+          // Rueda de señas (flota abajo-derecha, transparente sobre la mesa).
+          if (_enRed)
+            Positioned(
+              right: 4,
+              bottom: 90,
+              child: RuedaSenas(
+                numJugadores: _numJug,
+                onEnviar: _enviarSena,
+              ),
+            ),
         ],
       ),
     );
@@ -1164,6 +1270,30 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     return _manos.isNotEmpty ? _manos[asiento].length : 0;
   }
 
+  // Globo de seña (emoji) encima del nombre de un asiento, si hay una visible.
+  Widget _globoSena(int asiento) {
+    final senaId = _senaVisible[asiento];
+    if (senaId == null) return const SizedBox.shrink();
+    final s = senaPorId(senaId);
+    if (s == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(s.emoji, style: const TextStyle(fontSize: 22)),
+    );
+  }
+
   Widget _jugadorRival({
     required int asiento,
     required String etiqueta,
@@ -1175,6 +1305,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       padding: const EdgeInsets.only(top: 6),
       child: Column(
         children: [
+          _globoSena(asiento),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
@@ -1213,6 +1344,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          _globoSena(asiento),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
