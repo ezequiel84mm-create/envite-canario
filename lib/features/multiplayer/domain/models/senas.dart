@@ -83,7 +83,7 @@ const List<Sena> senasDisponibles = [
   Sena(
     id: 'flus',
     emoji: '🐡',
-    nombre: 'Full (tres del mismo palo)',
+    nombre: 'Full (tener tres triunfos)',
     gesto: 'inflar los carrillos',
     modos: _todos,
   ),

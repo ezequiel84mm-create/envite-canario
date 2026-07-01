@@ -49,7 +49,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   List<int> _bazasAsiento = [0, 0, 0, 0, 0, 0];
   // Seña visible encima de cada asiento (id de seña) y su timer.
   final Map<int, String> _senaVisible = {};
-  final Map<int, DateTime> _senaHasta = {};
+  // Cola de señas pendientes de mostrar (para que no se solapen).
+  final List<MapEntry<int, String>> _colaSenas = [];
+  bool _mostrandoSena = false;
   // Marcador del Envite por EQUIPO (como el 1v1 pero por bando).
   int _piedrasEquipo0 = 0;
   int _piedrasEquipo1 = 0;
@@ -247,19 +249,33 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     }
   }
 
-  // Muestra el globo de seña encima de un asiento durante unos segundos.
+  // Encola una seña para mostrarla (evita que varias se solapen).
   void _mostrarSenaLocal(int asiento, String senaId) {
+    _colaSenas.add(MapEntry(asiento, senaId));
+    _procesarColaSenas();
+  }
+
+  // Va sacando señas de la cola de una en una, cada una ~3 segundos.
+  void _procesarColaSenas() {
+    if (_mostrandoSena) return;
+    if (_colaSenas.isEmpty) return;
+    _mostrandoSena = true;
+    final entrada = _colaSenas.removeAt(0);
+    final asiento = entrada.key;
+    final senaId = entrada.value;
     setState(() {
       _senaVisible[asiento] = senaId;
-      _senaHasta[asiento] = DateTime.now().add(const Duration(seconds: 3));
     });
     Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
-      final hasta = _senaHasta[asiento];
-      if (hasta != null && DateTime.now().isBefore(hasta)) return;
       setState(() {
         _senaVisible.remove(asiento);
-        _senaHasta.remove(asiento);
+      });
+      // Pequeña pausa entre señas para que se distingan.
+      Timer(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        _mostrandoSena = false;
+        _procesarColaSenas();
       });
     });
   }
