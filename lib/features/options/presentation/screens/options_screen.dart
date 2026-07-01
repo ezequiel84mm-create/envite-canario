@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
 
@@ -169,6 +170,22 @@ class _OptionsScreenState extends State<OptionsScreen> {
                 'Desarrollo: Ezequiel Mejías',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Color(0xFF6B5424)),
+              ),
+              const SizedBox(height: 4),
+              // Versión leída automáticamente del pubspec (se actualiza sola).
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  final v = snapshot.hasData
+                      ? 'Versión ${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                      : '';
+                  return Text(
+                    v,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF8A7040)),
+                  );
+                },
               ),
               const SizedBox(height: 18),
               GestureDetector(
