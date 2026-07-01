@@ -27,6 +27,7 @@ class TrickEngine2v2 {
     required Suit paloVirado,
     List<CartaJugada2v2> baza = const [],
     int asiento = -1,
+    int Function(int)? equipoDe,
   }) {
     if (paloInicialBaza == null) {
       return mano;
@@ -60,7 +61,8 @@ class TrickEngine2v2 {
     if (asiento >= 0 &&
         baza.isNotEmpty &&
         _miEquipoVaGanando(
-            baza: baza, asiento: asiento, paloVirado: paloVirado)) {
+            baza: baza, asiento: asiento, paloVirado: paloVirado,
+            equipoDe: equipoDe)) {
       return mano;
     }
     // Mi equipo no va ganando. Solo me obligan a montar con un triunfo
@@ -108,6 +110,7 @@ class TrickEngine2v2 {
   static bool _miEquipoVaGanando({
     required List<CartaJugada2v2> baza,
     required int asiento,
+    int Function(int)? equipoDe,
     required Suit paloVirado,
   }) {
     if (baza.isEmpty) return false;
@@ -123,7 +126,8 @@ class TrickEngine2v2 {
         lider = j;
       }
     }
-    return (lider.asiento % 2) == (asiento % 2);
+    final eq = equipoDe ?? (int a) => a % 2;
+    return eq(lider.asiento) == eq(asiento);
   }
 
   /// Determina quién gana una mano completa.

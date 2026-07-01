@@ -764,13 +764,7 @@ void _jugadorDesconectado(String idInvitado) {
 
   // El equipo del jugador local (0 o 1).
   int _miEquipo() {
-    final cfg = widget.config;
-    if (cfg == null) return 0;
-    final miAsiento = (_enRed && !_soyAnfitrion) ? _miAsientoEnRed() : 0;
-    if (miAsiento < cfg.jugadores.length) {
-      return cfg.jugadores[miAsiento].equipo;
-    }
-    return miAsiento % 2;
+    return _equipoDeAsiento(_miAsientoBase);
   }
 
   // Mensaje del turno actual, según quién soy yo.
@@ -840,7 +834,7 @@ void _jugadorDesconectado(String idInvitado) {
     _equipoTurnoApuesta = -1;
     _manoEsDeTumbo = false;
     _equipoDecideTumbo = -1;
-    _turno = (_barajador + 1) % _numJug; // sale el de la izquierda del que baraja
+    _turno = _siguienteEnCirculo(_barajador); // sale el de la izquierda del que baraja
     _manosEquipo0 = 0;
     _manosEquipo1 = 0;
     _bazasAsiento = List.filled(_numJug, 0);
@@ -914,6 +908,7 @@ void _jugadorDesconectado(String idInvitado) {
       paloVirado: _paloVirado,
       baza: _baza,
       asiento: asiento,
+      equipoDe: _equipoDeAsiento,
     );
   }
 
@@ -952,7 +947,7 @@ void _jugadorDesconectado(String idInvitado) {
     if (_baza.length == _numJug) {
       _resolverBaza();
     } else {
-      _turno = (_turno + 1) % _numJug;
+      _turno = _siguienteEnCirculo(_turno);
       _mensaje = _mensajeTurno();
       _mensajeEsTurno = true;
       setState(() {});
@@ -984,6 +979,7 @@ void _jugadorDesconectado(String idInvitado) {
         validas: validas,
         bazaActual: _baza,
         paloVirado: _paloVirado,
+        equipoDe: _equipoDeAsiento,
       );
       _jugarCarta(asiento, carta);
     });
@@ -994,7 +990,7 @@ void _jugadorDesconectado(String idInvitado) {
       jugadas: _baza,
       paloVirado: _paloVirado,
     );
-    final equipoGanador = ganador.asiento % 2;
+    final equipoGanador = _equipoDeAsiento(ganador.asiento);
     if (equipoGanador == 0) {
       _manosEquipo0++;
     } else {
@@ -1022,7 +1018,7 @@ void _jugadorDesconectado(String idInvitado) {
       final hayGanador2Bazas = _manosEquipo0 >= 2 || _manosEquipo1 >= 2;
       if (hayGanador2Bazas || cartasRestantes == 0) {
         _rondaTerminada = true;
-        _barajador = (_barajador + 1) % _numJug; // rota para la próxima mano
+        _barajador = _siguienteEnCirculo(_barajador); // rota para la próxima mano
         _finalizarRondaEquipos();
       }
       setState(() {});
@@ -1059,8 +1055,20 @@ void _jugadorDesconectado(String idInvitado) {
 
   // Asiento absoluto que se dibuja en una POSICIÓN visual.
   // posición 0 = abajo (yo), 1 = izq, 2 = arriba, 3 = der.
+  // Orden circular del 2v2: tú, rival, compañero, rival (equipos reales
+  // {0,3} y {1,2}). Mantiene la alternancia de equipos en turnos y layout.
+  static const List<int> _ordenCircular4 = [0, 1, 3, 2];
   int _asientoEnPos(int posicion) {
-    return (_miAsientoBase + posicion) % _numJug;
+    final miIdx = _ordenCircular4.indexOf(_miAsientoBase);
+    if (miIdx == -1) return (_miAsientoBase + posicion) % _numJug;
+    return _ordenCircular4[(miIdx + posicion) % 4];
+  }
+
+  // Siguiente asiento en el orden de juego (círculo de la mesa).
+  int _siguienteEnCirculo(int asiento) {
+    final idx = _ordenCircular4.indexOf(asiento);
+    if (idx == -1) return (asiento + 1) % _numJug;
+    return _ordenCircular4[(idx + 1) % 4];
   }
 
   CardModel? _cartaEnMesaDe(int asiento) {

@@ -18,6 +18,7 @@ class AiPlayer2v2 {
     required List<CardModel> validas,
     required List<CartaJugada2v2> bazaActual,
     required Suit paloVirado,
+    int Function(int)? equipoDe,
   }) {
     if (validas.length == 1) return validas.first;
 
@@ -39,7 +40,7 @@ class AiPlayer2v2 {
     }
 
     // Responde a una baza en curso.
-    return _elegirAlResponder(miAsiento, validas, bazaActual, paloVirado);
+    return _elegirAlResponder(miAsiento, validas, bazaActual, paloVirado, equipoDe);
   }
 
   /// Fuerza de una carta (triunfo o no) para ordenar.
@@ -63,6 +64,7 @@ class AiPlayer2v2 {
     List<CardModel> validas,
     List<CartaJugada2v2> bazaActual,
     Suit paloVirado,
+    int Function(int)? equipoDe,
   ) {
     // ¿Quién va ganando la baza ahora mismo?
     final ganadorActual = TrickEngine2v2.determinarGanador(
@@ -72,7 +74,8 @@ class AiPlayer2v2 {
 
     // ¿El que va ganando es de mi equipo? (mismo equipo = misma paridad)
     final ganadorEsCompanero =
-        (ganadorActual.asiento % 2) == (miAsiento % 2);
+        (equipoDe ?? (int a) => a % 2)(ganadorActual.asiento) ==
+            (equipoDe ?? (int a) => a % 2)(miAsiento);
 
     final ordenadas = [...validas]
       ..sort((a, b) => _fuerza(a, paloVirado).compareTo(_fuerza(b, paloVirado)));
