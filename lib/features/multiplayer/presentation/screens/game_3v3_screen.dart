@@ -775,18 +775,47 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   // Cada IA compañera tuya encola señas según las cartas que tiene.
   // Solo las procesa el cerebro (anfitrión o modo local).
   void _iaCompanerasSenan() {
+    // Solo el cerebro (anfitrión o modo local) genera las señas de las IA.
     if (_enRed && !_soyAnfitrion) return;
     if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return;
-    final miEquipo = _equipoDeAsiento(_miAsientoBase);
-    for (int asiento = 0; asiento < _numJug; asiento++) {
-      if (asiento == _miAsientoBase) continue;
-      if (_equipoDeAsiento(asiento) != miEquipo) continue;
-      if (!_esIA(asiento)) continue;
-      if (asiento >= _manos.length) continue;
-      for (final senaId in _senasDeMano(_manos[asiento])) {
-        _mostrarSenaLocal(asiento, senaId);
+    // ¿Hay alguna IA con señas que mandar? Si es así, primero un silbido
+    // para avisar a la mesa de que van a empezar las señas.
+    bool haySenas = false;
+    for (int a = 0; a < _numJug; a++) {
+      if (_esIA(a) && a < _manos.length && _senasDeMano(_manos[a]).isNotEmpty) {
+        haySenas = true;
+        break;
       }
     }
+    if (!haySenas) return;
+
+    // Silbido inicial (lo oye toda la mesa, tambien los invitados por red).
+    _procesarSena(_primeraIASenadora(), 'silbido');
+
+    // Tras el silbido, empiezan las señas de las IA (escalonadas).
+    int retardo = 700; // deja sonar el silbido antes de la primera seña
+    for (int asiento = 0; asiento < _numJug; asiento++) {
+      if (!_esIA(asiento)) continue;
+      if (asiento >= _manos.length) continue;
+      final senas = _senasDeMano(_manos[asiento]);
+      for (final senaId in senas) {
+        Timer(Duration(milliseconds: retardo), () {
+          if (!mounted) return;
+          _procesarSena(asiento, senaId);
+        });
+        retardo += 200;
+      }
+    }
+  }
+
+  // Devuelve el asiento de la primera IA con señas (para emitir el silbido).
+  int _primeraIASenadora() {
+    for (int a = 0; a < _numJug; a++) {
+      if (_esIA(a) && a < _manos.length && _senasDeMano(_manos[a]).isNotEmpty) {
+        return a;
+      }
+    }
+    return 0;
   }
 
   bool _esIA(int asiento) {
@@ -1215,8 +1244,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
           // Rueda de señas (flota abajo-derecha, transparente sobre la mesa).
           if (_enRed)
             Positioned(
-              right: 4,
-              bottom: 90,
+              right: 0,
+              bottom: 0,
               child: RuedaSenas(
                 numJugadores: _numJug,
                 onEnviar: _enviarSena,
