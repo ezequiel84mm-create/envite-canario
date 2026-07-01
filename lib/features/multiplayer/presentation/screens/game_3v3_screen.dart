@@ -768,6 +768,68 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _continuarSiTocaIA();
     _quizaDecideTumboIA();
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+    // Tus compañeros IA te señan sus cartas relevantes (en cola).
+    _iaCompanerasSenan();
+  }
+
+  // Cada IA compañera tuya encola señas según las cartas que tiene.
+  // Solo las procesa el cerebro (anfitrión o modo local).
+  void _iaCompanerasSenan() {
+    if (_enRed && !_soyAnfitrion) return;
+    if (_manoEsDeTumbo || _equipoDecideTumbo != -1) return;
+    final miEquipo = _equipoDeAsiento(_miAsientoBase);
+    for (int asiento = 0; asiento < _numJug; asiento++) {
+      if (asiento == _miAsientoBase) continue;
+      if (_equipoDeAsiento(asiento) != miEquipo) continue;
+      if (!_esIA(asiento)) continue;
+      if (asiento >= _manos.length) continue;
+      for (final senaId in _senasDeMano(_manos[asiento])) {
+        _mostrarSenaLocal(asiento, senaId);
+      }
+    }
+  }
+
+  bool _esIA(int asiento) {
+    final cfg = widget.config;
+    if (cfg == null) return asiento != 0;
+    for (final j in cfg.jugadores) {
+      if (j.asiento == asiento) return j.esIA;
+    }
+    return false;
+  }
+
+  List<String> _senasDeMano(List<CardModel> mano) {
+    final res = <String>[];
+    bool esTriunfo(CardModel c) {
+      final p = TrickEngine3v3.puntuacionPublica(c, _paloVirado, c.suit);
+      return p >= 500;
+    }
+    int triunfos = 0;
+    for (final c in mano) {
+      if (esTriunfo(c)) triunfos++;
+      if (c.suit == Suit.oros && c.value == CardValue.sota) {
+        res.add('perica');
+      } else if (c.suit == _paloVirado && c.value == CardValue.dos) {
+        res.add('malilla');
+      } else if (c.suit == _paloVirado && c.value == CardValue.rey) {
+        res.add('rey');
+      } else if (c.suit == _paloVirado && c.value == CardValue.caballo) {
+        res.add('caballo');
+      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
+        res.add('tresbastos');
+      } else if (c.suit == Suit.oros && c.value == CardValue.cinco) {
+        res.add('tresbastos');
+      }
+    }
+    if (triunfos == 0) {
+      res.add('ciego');
+    } else if (triunfos == 3) {
+      res.add('flus');
+    }
+    return res.where((id) {
+      final s = senaPorId(id);
+      return s != null && s.aplicaEn(_numJug);
+    }).toList();
   }
 
   // Si el equipo que decide el tumbo es solo IA, decide automaticamente.
