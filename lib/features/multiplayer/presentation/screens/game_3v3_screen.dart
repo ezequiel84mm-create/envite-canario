@@ -1273,7 +1273,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
             child: Container(
               width: 34,
               height: 34,

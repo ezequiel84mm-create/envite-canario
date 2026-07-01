@@ -1195,7 +1195,7 @@ void _jugadorDesconectado(String idInvitado) {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
             child: Container(
               width: 34,
               height: 34,
