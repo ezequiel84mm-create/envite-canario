@@ -34,4 +34,7 @@ class TipoMensajeSala {
   static const String respuestaEnvite = 'JUEGO_RESPUESTA_ENVITE';
   // INVITADO -> ANFITRIÓN: decisión de tumbo por equipo (jugar/retirarse).
   static const String decisionTumbo = 'JUEGO_DEC_TUMBO';
+  // CUALQUIERA -> ANFITRIÓN: "envío esta seña" (datos: asiento, sena).
+  // El anfitrión la reenvía a los miembros del MISMO equipo con el mismo tipo.
+  static const String enviarSena = 'JUEGO_ENVIAR_SENA';
 }
