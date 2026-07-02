@@ -908,6 +908,41 @@ void _jugadorDesconectado(String idInvitado) {
     }
   }
 
+  void _pedirRenuncio() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B3D2E),
+        title: const Text('Renunciar a la mano',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'Se anula esta mano y se reparte de nuevo. Nadie suma piedras. Seguro?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _renunciarMano();
+            },
+            child: const Text('Renunciar', style: TextStyle(color: Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _renunciarMano() {
+    _iaProgramada = false; // liberar guard por si habia un future de IA en vuelo
+    _repartirNuevaRonda(); // reparte sin tocar piedras (no pasa por _finalizarRondaEquipos)
+    _mensaje = 'Mano anulada. Se reparte de nuevo.';
+    setState(() {});
+    if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
+  }
+
   void _repartirNuevaRonda() {
     _reproducirEfecto('sonido_reparto.mp3');
     _colaSenas.clear();
@@ -1288,22 +1323,70 @@ void _jugadorDesconectado(String idInvitado) {
     final chicosRival = _miEquipo() == 0 ? _chicosEquipo1 : _chicosEquipo0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
-      child: Row(
+      child: Column(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.black38,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.chevron_left, color: Colors.white),
+          SizedBox(
+            height: 34,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Center(
+                  child: Text('ENVITE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                        letterSpacing: 2,
+                        fontFamily: 'Georgia',
+                      )),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.black38,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.chevron_left, color: Colors.white),
+                    ),
+                  ),
+                ),
+                if (!_enRed || _soyAnfitrion)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _pedirRenuncio,
+                      child: Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black38,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          widthFactor: 1,
+                          child: Text('RENUNCIO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              letterSpacing: 1,
+                            )),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 6),
-          // NOSOTROS (azul)
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              // NOSOTROS (azul)
           Expanded(
             child: _panelMarcador(
               titulo: 'NOSOTROS',
@@ -1354,6 +1437,8 @@ void _jugadorDesconectado(String idInvitado) {
             ),
           ),
           const SizedBox(width: 6),
+            ],
+          ),
         ],
       ),
     );
