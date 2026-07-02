@@ -203,8 +203,10 @@ class _SalaScreenState extends State<SalaScreen> {
     // botón propio. Solo nos movemos a asientos vacíos.
     if (!destino.estaVacio) return;
     if (widget.soyAnfitrion) {
-      // El anfitrión se mueve directo.
-      _moverInvitado('anfitrion', numero);
+      // El anfitrión SIEMPRE se queda en el asiento 0 (el juego asume que
+      // el cerebro está en el 0). No se permite moverlo para evitar
+      // descuadres de layout, cartas y señas.
+      return;
     } else {
       // El invitado manda la petición al anfitrión.
       _conexion.enviarAlAnfitrion(MensajeRed(
