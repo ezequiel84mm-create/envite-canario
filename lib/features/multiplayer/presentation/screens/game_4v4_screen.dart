@@ -59,6 +59,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   // ===== Envite por equipo =====
   int _nivelApuesta = 0;       // 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
   bool _enviteCantado = false; // ¿hay un envite esperando respuesta?
+  bool _iaProgramada = false;  // guard: evita 2 futures de IA en vuelo a la vez
   final _random44 = Random();
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
@@ -1044,6 +1045,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   void _continuarSiTocaIA() {
+    if (_iaProgramada) return; // ya hay un future de IA en vuelo
     if (_rondaTerminada) return;
     if (_baza.length == _numJug) return;
     if (_enRed) {
@@ -1055,7 +1057,9 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
       if (_turno == 0) return;
     }
 
+    _iaProgramada = true;
     Future.delayed(const Duration(milliseconds: 1200), () {
+      _iaProgramada = false; // el future ya disparo: liberamos el guard
       if (!mounted || _rondaTerminada) return;
       final asiento = _turno;
       // Antes de jugar, la IA considera proponer un envite.
