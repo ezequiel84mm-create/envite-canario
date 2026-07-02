@@ -264,6 +264,41 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _repartirNuevaMano();
   }
 
+  void _pedirRenuncio() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B3D2E),
+        title: const Text('Renunciar a la mano',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'Se anula esta mano y se reparte de nuevo. Nadie suma piedras. Seguro?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _renunciarMano();
+            },
+            child: const Text('Renunciar', style: TextStyle(color: Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _renunciarMano() {
+    _resolviendoBaza = false; // por si renuncia a mitad de resolucion
+    _repartirNuevaMano();     // reparte de nuevo sin tocar score (piedras intactas)
+    setState(() {
+      mensaje = 'Mano anulada. Se reparte de nuevo.';
+    });
+  }
+
   void _repartirNuevaMano() {
     final players = [
       PlayerModel(id: 'tu', name: 'Tú'),
@@ -694,6 +729,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _pedirRenuncio,
+                      child: Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black26,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          widthFactor: 1,
+                          child: Text('RENUNCIO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                letterSpacing: 1,
+                              )),
+                        ),
                       ),
                     ),
                   ),
