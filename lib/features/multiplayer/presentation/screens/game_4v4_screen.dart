@@ -189,7 +189,81 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
           });
         }
       };
+      // Si el anfitrión (el cerebro) se cae, la partida no puede seguir.
+      con.alPerderAnfitrion = () {
+        if (!mounted) return;
+        _mostrarAnfitrionDesconectado();
+      };
     }
+  }
+
+  // El invitado pierde al anfitrión: avisa y vuelve al menú principal.
+  bool _dialogoDesconexionAbierto = false;
+  void _mostrarAnfitrionDesconectado() {
+    if (_dialogoDesconexionAbierto) return;
+    _dialogoDesconexionAbierto = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF8A6A35), width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '🔌 Anfitrión desconectado',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9A3A0A)),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Se ha perdido la conexión con el anfitrión.\nLa partida ha terminado.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Color(0xFF3A2B12), height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              GestureDetector(
+                onTap: () =>
+                    Navigator.of(context).popUntil((r) => r.isFirst),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 28),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                  ),
+                  child: const Text(
+                    'Volver al menú',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF3A2B12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ===== SEÑAS ENTRE COMPAÑEROS =====
@@ -494,6 +568,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   void dispose() {
     widget.conexion?.alRecibirDeInvitado = null;
     widget.conexion?.alRecibirDeAnfitrion = null;
+    widget.conexion?.alPerderAnfitrion = null;
     _sfxPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
