@@ -392,6 +392,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       paloDeLaMano: paloDeLaMano,
       bazasGanadasIA: bazasGanadasIA,
       bazasGanadasTu: bazasGanadasTu,
+      margen: AiPlayer.margenPara(AppSettings.instance.dificultadIA),
     );
     setState(() {
       ia.hand.remove(cartaElegida);
@@ -416,6 +417,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       paloDeLaMano: paloDeLaMano,
       bazasGanadasIA: bazasGanadasIA,
       bazasGanadasTu: bazasGanadasTu,
+      margen: AiPlayer.margenPara(AppSettings.instance.dificultadIA),
     );
 
     setState(() {

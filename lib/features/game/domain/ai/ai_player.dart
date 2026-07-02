@@ -7,7 +7,21 @@ class AiPlayer {
   static final Random _random = Random();
 
   /// Probabilidad de que la IA juegue de forma subóptima (no perfecta).
+  /// Este es el valor para dificultad "Normal"; ver [margenPara].
   static const double margenDeError = 0.20;
+
+  /// Traduce la dificultad guardada en Opciones (0=Fácil, 1=Normal,
+  /// 2=Difícil) al margen de error real de esta IA.
+  static double margenPara(int dificultadIA) {
+    switch (dificultadIA) {
+      case 0:
+        return 0.35; // Fácil
+      case 2:
+        return 0.05; // Difícil
+      default:
+        return 0.20; // Normal
+    }
+  }
 
   /// Elige qué carta jugar de las válidas disponibles.
   static CardModel elegirCarta({
@@ -16,11 +30,13 @@ class AiPlayer {
     required Suit paloDeLaMano,
     required int bazasGanadasIA,
     required int bazasGanadasTu,
+    double? margen,
   }) {
     if (validas.length == 1) return validas.first;
+    final m = margen ?? margenDeError;
 
     // Margen de error: a veces juega al azar entre las válidas.
-    if (_random.nextDouble() < margenDeError) {
+    if (_random.nextDouble() < m) {
       return validas[_random.nextInt(validas.length)];
     }
 

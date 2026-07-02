@@ -9,7 +9,21 @@ import '../engine/trick_engine_3v3.dart';
 /// cartas altas cuando un compañero ya va ganando la baza.
 class AiPlayer3v3 {
   static final Random _random = Random();
+  /// Este es el valor para dificultad "Normal"; ver [margenPara].
   static const double margenDeError = 0.15;
+
+  /// Traduce la dificultad guardada en Opciones (0=Fácil, 1=Normal,
+  /// 2=Difícil) al margen de error real de esta IA.
+  static double margenPara(int dificultadIA) {
+    switch (dificultadIA) {
+      case 0:
+        return 0.30; // Fácil
+      case 2:
+        return 0.05; // Difícil
+      default:
+        return 0.15; // Normal
+    }
+  }
 
   /// [equipoDe] devuelve el equipo (0/1) de un asiento dado.
   static CardModel elegirCarta({
@@ -18,8 +32,10 @@ class AiPlayer3v3 {
     required List<CartaJugada2v2> bazaActual,
     required Suit paloVirado,
     required int Function(int asiento) equipoDe,
+    double? margen,
   }) {
     if (validas.length == 1) return validas.first;
+    final m = margen ?? margenDeError;
     final ordenadas = [...validas]
       ..sort((a, b) =>
           _fuerza(a, paloVirado, bazaActual).compareTo(
@@ -27,7 +43,7 @@ class AiPlayer3v3 {
     // Margen de error: a veces juega subóptimo, PERO solo entre las cartas
     // más flojas (la mitad inferior), para no malgastar fijas ni triunfos
     // altos a la basura.
-    if (_random.nextDouble() < margenDeError) {
+    if (_random.nextDouble() < m) {
       final mitad = (ordenadas.length / 2).ceil();
       final flojas = ordenadas.take(mitad).toList();
       return flojas[_random.nextInt(flojas.length)];

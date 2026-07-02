@@ -1071,6 +1071,7 @@ void _jugadorDesconectado(String idInvitado) {
         bazaActual: _baza,
         paloVirado: _paloVirado,
         equipoDe: _equipoDeAsiento,
+        margen: AiPlayer2v2.margenPara(AppSettings.instance.dificultadIA),
       );
       _jugarCarta(asiento, carta);
     });

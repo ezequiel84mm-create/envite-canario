@@ -1067,6 +1067,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
         bazaActual: _baza,
         paloVirado: _paloVirado,
         equipoDe: _equipoDeAsiento,
+        margen: AiPlayer4v4.margenPara(AppSettings.instance.dificultadIA),
       );
       _jugarCarta(asiento, carta);
     });

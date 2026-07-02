@@ -10,7 +10,21 @@ class AiPlayer2v2 {
   static final Random _random = Random();
 
   /// Probabilidad de jugar de forma subóptima (para que no sea perfecta).
+  /// Este es el valor para dificultad "Normal"; ver [margenPara].
   static const double margenDeError = 0.20;
+
+  /// Traduce la dificultad guardada en Opciones (0=Fácil, 1=Normal,
+  /// 2=Difícil) al margen de error real de esta IA.
+  static double margenPara(int dificultadIA) {
+    switch (dificultadIA) {
+      case 0:
+        return 0.35; // Fácil
+      case 2:
+        return 0.05; // Difícil
+      default:
+        return 0.20; // Normal
+    }
+  }
 
   /// Elige qué carta juega la IA del asiento [miAsiento].
   static CardModel elegirCarta({
@@ -19,13 +33,15 @@ class AiPlayer2v2 {
     required List<CartaJugada2v2> bazaActual,
     required Suit paloVirado,
     int Function(int)? equipoDe,
+    double? margen,
   }) {
     if (validas.length == 1) return validas.first;
+    final m = margen ?? margenDeError;
 
     // Margen de error: a veces juega suboptimo, pero solo entre las cartas
     // mas flojas (mitad inferior), para no malgastar la malilla ni triunfos
     // altos a la basura.
-    if (_random.nextDouble() < margenDeError) {
+    if (_random.nextDouble() < m) {
       final ord = [...validas]
         ..sort((a, b) =>
             _fuerza(a, paloVirado).compareTo(_fuerza(b, paloVirado)));

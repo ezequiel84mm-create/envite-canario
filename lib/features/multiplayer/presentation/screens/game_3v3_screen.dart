@@ -1077,6 +1077,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
         bazaActual: _baza,
         paloVirado: _paloVirado,
         equipoDe: _equipoDeAsiento,
+        margen: AiPlayer3v3.margenPara(AppSettings.instance.dificultadIA),
       );
       _jugarCarta(asiento, carta);
     });
