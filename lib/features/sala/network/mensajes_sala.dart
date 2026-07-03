@@ -37,4 +37,11 @@ class TipoMensajeSala {
   // CUALQUIERA -> ANFITRIÓN: "envío esta seña" (datos: asiento, sena).
   // El anfitrión la reenvía a los miembros del MISMO equipo con el mismo tipo.
   static const String enviarSena = 'JUEGO_ENVIAR_SENA';
+
+  // Renuncio: un humano propone anular la mano; todos los humanos deben
+  // aceptar. proponerRenuncio lo manda el que propone al anfitrion;
+  // el anfitrion lo reenvia a los demas humanos; cada uno responde con
+  // respuestaRenuncio (acepta true/false).
+  static const String proponerRenuncio = 'JUEGO_PROPONER_RENUNCIO';
+  static const String respuestaRenuncio = 'JUEGO_RESPUESTA_RENUNCIO';
 }
