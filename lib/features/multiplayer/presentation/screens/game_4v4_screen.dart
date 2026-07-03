@@ -10,6 +10,7 @@ import '../../../../core/enums/suit.dart';
 import '../../../../core/enums/card_value.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
+import '../widgets/animacion_reparto_equipos.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
 import '../../domain/engine/trick_engine_4v4.dart';
@@ -87,6 +88,8 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
 
   // Reproductor de efectos (voz de los envites).
   final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _repartoPlayer = AudioPlayer(); // dedicado al sonido de reparto
+  bool _repartiendoAnim = false; // muestra la animacion de reparto
 
   // Reproduce el canto de voz según el nivel de apuesta.
   // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
@@ -578,6 +581,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     widget.conexion?.alRecibirDeAnfitrion = null;
     widget.conexion?.alPerderAnfitrion = null;
     _sfxPlayer.dispose();
+    _repartoPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
   }
@@ -944,7 +948,10 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   void _repartirNuevaRonda() {
-    _reproducirEfecto('sonido_reparto.mp3');
+    if (AppSettings.instance.efectosActivados) {
+      _repartoPlayer.play(AssetSource('audio/sonido_reparto.mp3'));
+    }
+    _repartiendoAnim = true; // dispara la animacion visual de reparto
     _colaSenas.clear();
     _senaVisible.clear();
     _mostrandoSena = false;
@@ -1217,6 +1224,15 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     return (_miAsientoBase + posicion) % _numJug;
   }
 
+  // Inversa de _asientoEnPos: dado un asiento, en que posicion de
+  // pantalla (0..n-1) se dibuja. Para la animacion de reparto.
+  int _posEnCirculo(int asiento) {
+    for (int pos = 0; pos < _numJug; pos++) {
+      if (_asientoEnPos(pos) == asiento) return pos;
+    }
+    return 0;
+  }
+
   // ¿El jugador en esta posición de pantalla es de mi equipo?
   bool _esCompaneroPos(int posicion) {
     final asiento = _asientoEnPos(posicion);
@@ -1388,6 +1404,18 @@ void _jugadorDesconectado(String idInvitado) {
               child: RuedaSenas(
                 numJugadores: _numJug,
                 onEnviar: _enviarSena,
+              ),
+            ),
+          if (_repartiendoAnim)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimacionRepartoEquipos(
+                  numJugadores: _numJug,
+                  posBarajador: _posEnCirculo(_barajador),
+                  onCompleta: () {
+                    if (mounted) setState(() => _repartiendoAnim = false);
+                  },
+                ),
               ),
             ),
         ],

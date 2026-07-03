@@ -10,6 +10,7 @@ import '../../../../core/enums/suit.dart';
 import '../../../../core/enums/card_value.dart';
 import '../../../game/data/models/card_model.dart';
 import '../../../game/presentation/widgets/card_widget.dart';
+import '../widgets/animacion_reparto_equipos.dart';
 import '../../domain/engine/deal_engine_2v2.dart';
 import '../../domain/engine/trick_engine_2v2.dart';
 import '../../domain/engine/trick_engine_3v3.dart';
@@ -88,6 +89,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   // Reproductor de efectos (voz de los envites).
   final AudioPlayer _sfxPlayer = AudioPlayer();
+  final AudioPlayer _repartoPlayer = AudioPlayer(); // dedicado al sonido de reparto (no lo pisa el silbido)
+  bool _repartiendoAnim = false; // muestra la animacion de reparto
 
   // Reproduce el canto de voz según el nivel de apuesta.
   // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
@@ -475,6 +478,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     widget.conexion?.alRecibirDeAnfitrion = null;
     widget.conexion?.alPerderAnfitrion = null;
     _sfxPlayer.dispose();
+    _repartoPlayer.dispose();
     MusicController.instance.reanudar();
     super.dispose();
   }
@@ -841,7 +845,12 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   }
 
   void _repartirNuevaRonda() {
-    _reproducirEfecto('sonido_reparto.mp3');
+    // Reparto en su propio reproductor para que el silbido de las senas
+    // (que usa _sfxPlayer) no lo corte.
+    if (AppSettings.instance.efectosActivados) {
+      _repartoPlayer.play(AssetSource('audio/sonido_reparto.mp3'));
+    }
+    _repartiendoAnim = true; // dispara la animacion visual de reparto
     // Limpiar señas de la mano anterior (cola y globos visibles).
     _colaSenas.clear();
     _senaVisible.clear();
@@ -881,11 +890,18 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     }
     setState(() {});
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
-    // Primero las IA señan sus cartas; la primera jugada espera un poco
-    // para que dé tiempo a ver las señas antes de que arranque la mano.
-    _iaCompanerasSenan();
+    // El silbido de las senas comparte reproductor con el sonido de
+    // reparto y lo pisaria. Por eso retrasamos las senas de la IA ~900ms:
+    // da tiempo a que se oiga el reparto antes de que suene el silbido.
+    const retardoReparto = 900;
+    Future.delayed(const Duration(milliseconds: retardoReparto), () {
+      if (!mounted || _rondaTerminada) return;
+      _iaCompanerasSenan();
+    });
+    // La primera jugada espera a que se vean las senas (retardo + tiempo
+    // de senas), para no arrancar la mano antes de mostrarlas.
     final tiempoSenas = _tiempoParaSenas();
-    Timer(Duration(milliseconds: tiempoSenas), () {
+    Timer(Duration(milliseconds: retardoReparto + tiempoSenas), () {
       if (!mounted || _rondaTerminada) return;
       _continuarSiTocaIA();
       _quizaDecideTumboIA();
@@ -1228,6 +1244,15 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     return (_miAsientoBase + posicion) % _numJug;
   }
 
+  // Inversa de _asientoEnPos: dado un asiento, en que posicion de
+  // pantalla (0..n-1) se dibuja. Sirve para la animacion de reparto.
+  int _posEnCirculo(int asiento) {
+    for (int pos = 0; pos < _numJug; pos++) {
+      if (_asientoEnPos(pos) == asiento) return pos;
+    }
+    return 0; // fallback
+  }
+
   // ¿El jugador en esta posición de pantalla es de mi equipo?
   bool _esCompaneroPos(int posicion) {
     final asiento = _asientoEnPos(posicion);
@@ -1395,6 +1420,19 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
               child: RuedaSenas(
                 numJugadores: _numJug,
                 onEnviar: _enviarSena,
+              ),
+            ),
+          // Animacion de reparto (por encima de la mesa, mientras reparte).
+          if (_repartiendoAnim)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimacionRepartoEquipos(
+                  numJugadores: _numJug,
+                  posBarajador: _posEnCirculo(_barajador),
+                  onCompleta: () {
+                    if (mounted) setState(() => _repartiendoAnim = false);
+                  },
+                ),
               ),
             ),
         ],
