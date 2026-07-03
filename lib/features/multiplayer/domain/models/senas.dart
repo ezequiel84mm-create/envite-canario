@@ -61,7 +61,7 @@ const List<Sena> senasDisponibles = [
   Sena(
     id: 'caballo',
     emoji: '😏',
-    nombre: 'El Caballo (de la vira)',
+    nombre: 'El Caballo de bastos (fija)',
     gesto: 'torcer la boca hacia un lado',
     modos: _soloEquiposFijas, // en 2v2 no se seña: oculta
   ),

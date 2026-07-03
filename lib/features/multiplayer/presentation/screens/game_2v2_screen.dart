@@ -396,17 +396,34 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   // Malilla y Rey (el modelo filtra por aplicaEn(4)).
   List<String> _senasDeMano(List<CardModel> mano) {
     final res = <String>[];
+    // Es triunfo: el palo virado o cualquiera de las 3 fijas (caballo de
+    // bastos, perica -sota de oros-, 3 de bastos), que arrastran como
+    // triunfo en cualquier vira.
+    bool esFija(CardModel c) =>
+        (c.suit == Suit.bastos && c.value == CardValue.caballo) ||
+        (c.suit == Suit.oros && c.value == CardValue.sota) ||
+        (c.suit == Suit.bastos && c.value == CardValue.tres);
+    bool esTriunfo(CardModel c) => c.suit == _paloVirado || esFija(c);
     int triunfos = 0;
     for (final c in mano) {
-      if (c.suit == _paloVirado) triunfos++;
-      if (c.suit == _paloVirado && c.value == CardValue.dos) {
+      if (esTriunfo(c)) triunfos++;
+      // Fijas con sena propia (ocultas en 2v2 por el filtro final, pero
+      // las mapeamos igual por consistencia). Luego malilla y rey del
+      // virado, y el resto de triunfos del virado como menores.
+      if (c.suit == Suit.oros && c.value == CardValue.sota) {
+        res.add('perica'); // fija (oculta en 2v2)
+      } else if (c.suit == Suit.bastos && c.value == CardValue.caballo) {
+        res.add('caballo'); // fija: caballo de bastos (oculta en 2v2)
+      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
+        res.add('tresbastos'); // fija (oculta en 2v2)
+      } else if (c.suit == _paloVirado && c.value == CardValue.dos) {
         res.add('malilla');
       } else if (c.suit == _paloVirado && c.value == CardValue.rey) {
         res.add('rey');
-      } else if (c.suit == _paloVirado && c.value == CardValue.caballo) {
-        res.add('caballo');
-      } else if (c.suit == Suit.oros && c.value == CardValue.sota) {
-        res.add('perica');
+      } else if (c.suit == _paloVirado) {
+        // Triunfo del palo virado sin sena propia (caballo del virado,
+        // sota, as, 7, 6, 5, 4, 3...): triunfo menor.
+        res.add('menores');
       }
     }
     if (triunfos == 0) {

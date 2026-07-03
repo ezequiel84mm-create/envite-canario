@@ -403,18 +403,25 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     int triunfos = 0;
     for (final c in mano) {
       if (esTriunfo(c)) triunfos++;
+      // Reglas de sena en 4v4. Fijas: perica (sota oros), caballo de
+      // bastos, 3 de bastos y ADEMAS el 5 de oros (que en 4v4 es la
+      // carta mas alta). El 5 de oros hereda la sena del 'rey'; por eso
+      // el rey del palo virado se queda sin sena propia y va como menor.
       if (c.suit == Suit.oros && c.value == CardValue.sota) {
-        res.add('perica');
+        res.add('perica'); // fija
+      } else if (c.suit == Suit.bastos && c.value == CardValue.caballo) {
+        res.add('caballo'); // fija: caballo de bastos (la fija manda)
+      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
+        res.add('tresbastos'); // fija
+      } else if (c.suit == Suit.oros && c.value == CardValue.cinco) {
+        res.add('rey'); // fija SOLO en 4v4: el 5 de oros usa la sena del rey
       } else if (c.suit == _paloVirado && c.value == CardValue.dos) {
         res.add('malilla');
-      } else if (c.suit == _paloVirado && c.value == CardValue.rey) {
-        res.add('rey');
-      } else if (c.suit == _paloVirado && c.value == CardValue.caballo) {
-        res.add('caballo');
-      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
-        res.add('tresbastos');
-      } else if (c.suit == Suit.oros && c.value == CardValue.cinco) {
-        res.add('tresbastos');
+      } else if (c.suit == _paloVirado) {
+        // Cualquier otro triunfo del palo virado (rey del virado, caballo
+        // del virado, sota, as, 7, 6, 5, 4, 3...) es un triunfo menor.
+        // El rey del virado cede su sena al 5 de oros en 4v4.
+        res.add('menores');
       }
     }
     if (triunfos == 0) {

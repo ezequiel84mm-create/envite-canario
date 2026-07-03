@@ -970,18 +970,26 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     int triunfos = 0;
     for (final c in mano) {
       if (esTriunfo(c)) triunfos++;
+      // Figuras con sena propia. Las 3 fijas (perica, caballo de bastos,
+      // 3 de bastos) mandan siempre, en cualquier vira. En 3v3 el 5 de
+      // oros NO es fija: solo es triunfo menor si vira oros. La
+      // malilla y el rey del palo virado tienen sena propia. Cualquier
+      // otro triunfo del palo virado (incluido el caballo del virado)
+      // se sena como triunfo menor: uno por carta.
       if (c.suit == Suit.oros && c.value == CardValue.sota) {
-        res.add('perica');
+        res.add('perica'); // fija
+      } else if (c.suit == Suit.bastos && c.value == CardValue.caballo) {
+        res.add('caballo'); // fija: caballo de bastos (la fija manda)
+      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
+        res.add('tresbastos'); // fija
       } else if (c.suit == _paloVirado && c.value == CardValue.dos) {
         res.add('malilla');
       } else if (c.suit == _paloVirado && c.value == CardValue.rey) {
         res.add('rey');
-      } else if (c.suit == _paloVirado && c.value == CardValue.caballo) {
-        res.add('caballo');
-      } else if (c.suit == Suit.bastos && c.value == CardValue.tres) {
-        res.add('tresbastos');
-      } else if (c.suit == Suit.oros && c.value == CardValue.cinco) {
-        res.add('tresbastos');
+      } else if (c.suit == _paloVirado) {
+        // Triunfo del palo virado sin sena propia (caballo del virado,
+        // sota, as, 7, 6, 5, 4, 3...): es un triunfo menor.
+        res.add('menores');
       }
     }
     if (triunfos == 0) {
