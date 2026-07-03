@@ -1608,7 +1608,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
                     ),
                   ),
                 ),
-                if (!_enRed || _soyAnfitrion)
+                if (!_rondaTerminada)
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(

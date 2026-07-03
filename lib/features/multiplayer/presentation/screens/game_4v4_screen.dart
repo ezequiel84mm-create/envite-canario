@@ -65,6 +65,10 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   int _equipoCanto = -1;       // qué equipo cantó el envite pendiente (0/1)
   int _nivelPropuesto = 0;     // nivel al que subiría si se acepta
   int _equipoTurnoApuesta = -1; // -1=cualquiera puede cantar; si no, solo ese equipo
+  // ===== Renuncio (votacion en red) =====
+  bool _votacionRenuncioActiva = false;
+  final Set<String> _votosRenuncioPendientes = {};
+  int _votosRenuncioTotal = 0;
   // ===== Diálogo fin de mano/chico/partida =====
   String _pendienteDialogo = 'ninguno'; // ninguno/mano/chico/partida
   int _piedrasSumadasDialogo = 0;
@@ -164,6 +168,11 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
           if (asiento != null && senaId != null) {
             _procesarSena(asiento, senaId);
           }
+        } else if (msg.tipo == TipoMensajeSala.proponerRenuncio) {
+          final idProp = msg.datos['idProponente'] ?? idInvitado;
+          _iniciarVotacionRenuncio(idProp);
+        } else if (msg.tipo == TipoMensajeSala.respuestaRenuncio) {
+          _anfitrionRecibeVotoRenuncio(idInvitado, msg.datos['acepta'] == true);
         }
       };
       // Si un invitado se cae a media partida, su asiento pasa a IA.
@@ -178,6 +187,8 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
         if (msg == null) return;
         if (msg.tipo == TipoMensajeSala.estadoJuego) {
           _invitadoRecibeEstado(msg.datos);
+        } else if (msg.tipo == TipoMensajeSala.proponerRenuncio) {
+          _mostrarPropuestaRenuncio();
         } else if (msg.tipo == TipoMensajeSala.enviarSena) {
           final asiento = msg.datos['asiento'];
           final senaId = msg.datos['sena'];
@@ -912,16 +923,26 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     }
   }
 
+  int _numHumanos() {
+    final cfg = widget.config;
+    if (cfg == null) return 1;
+    return cfg.jugadores.where((j) => !j.esIA).length;
+  }
+
   void _pedirRenuncio() {
+    if (_votacionRenuncioActiva) return;
+    final hayQueVotar = _enRed && _numHumanos() > 1;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0B3D2E),
         title: const Text('Renunciar a la mano',
             style: TextStyle(color: Colors.white)),
-        content: const Text(
-            'Se anula esta mano y se reparte de nuevo. Nadie suma piedras. Seguro?',
-            style: TextStyle(color: Colors.white70)),
+        content: Text(
+            hayQueVotar
+                ? 'Se propone anular esta mano. Todos deben aceptar. Nadie suma piedras. Proponer?'
+                : 'Se anula esta mano y se reparte de nuevo. Nadie suma piedras. Seguro?',
+            style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -930,16 +951,124 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              _renunciarMano();
+              if (!hayQueVotar) {
+                _renunciarMano();
+              } else if (_soyAnfitrion) {
+                _iniciarVotacionRenuncio(widget.config!.idLocal);
+              } else {
+                widget.conexion!.enviarAlAnfitrion(
+                    MensajeRed(TipoMensajeSala.proponerRenuncio,
+                        {'idProponente': widget.config!.idLocal}).codificar());
+                setState(() {
+                  _mensaje = 'Renuncio propuesto. Esperando a los demas...';
+                });
+              }
             },
-            child: const Text('Renunciar', style: TextStyle(color: Colors.orangeAccent)),
+            child: Text(hayQueVotar ? 'Proponer' : 'Renunciar',
+                style: const TextStyle(color: Colors.orangeAccent)),
           ),
         ],
       ),
     );
   }
 
+  void _iniciarVotacionRenuncio(String idProponente) {
+    if (_votacionRenuncioActiva) return;
+    final cfg = widget.config!;
+    final votantes = cfg.jugadores
+        .where((j) => !j.esIA && j.id != idProponente)
+        .map((j) => j.id)
+        .toList();
+    if (votantes.isEmpty) {
+      _renunciarMano();
+      return;
+    }
+    _votacionRenuncioActiva = true;
+    _votosRenuncioPendientes
+      ..clear()
+      ..addAll(votantes);
+    _votosRenuncioTotal = votantes.length;
+    setState(() {
+      _mensaje = 'Renuncio propuesto. Votos: 0 de $_votosRenuncioTotal';
+    });
+    for (final id in votantes) {
+      if (id == 'anfitrion') {
+        _mostrarPropuestaRenuncio();
+      } else {
+        widget.conexion!.enviarA(
+            id, MensajeRed(TipoMensajeSala.proponerRenuncio, {}).codificar());
+      }
+    }
+  }
+
+  void _mostrarPropuestaRenuncio() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B3D2E),
+        title: const Text('Proponen renunciar',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'Un jugador propone anular esta mano y repartir de nuevo. Nadie suma piedras. Aceptas?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _emitirVotoRenuncio(false);
+            },
+            child: const Text('No', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _emitirVotoRenuncio(true);
+            },
+            child: const Text('Si, renunciar',
+                style: TextStyle(color: Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _emitirVotoRenuncio(bool acepta) {
+    if (_soyAnfitrion) {
+      _anfitrionRecibeVotoRenuncio(widget.config!.idLocal, acepta);
+    } else {
+      widget.conexion!.enviarAlAnfitrion(
+          MensajeRed(TipoMensajeSala.respuestaRenuncio, {'acepta': acepta})
+              .codificar());
+    }
+  }
+
+  void _anfitrionRecibeVotoRenuncio(String idVotante, bool acepta) {
+    if (!_votacionRenuncioActiva) return;
+    if (!acepta) {
+      _votacionRenuncioActiva = false;
+      _votosRenuncioPendientes.clear();
+      setState(() {
+        _mensaje = 'Renuncio rechazado. Seguid jugando.';
+      });
+      _enviarEstadoJuego();
+      return;
+    }
+    _votosRenuncioPendientes.remove(idVotante);
+    final votados = _votosRenuncioTotal - _votosRenuncioPendientes.length;
+    if (_votosRenuncioPendientes.isEmpty) {
+      _votacionRenuncioActiva = false;
+      _renunciarMano();
+    } else {
+      setState(() {
+        _mensaje = 'Renuncio propuesto. Votos: $votados de $_votosRenuncioTotal';
+      });
+      _enviarEstadoJuego();
+    }
+  }
+
   void _renunciarMano() {
+    _votacionRenuncioActiva = false;
+    _votosRenuncioPendientes.clear();
     _iaProgramada = false; // liberar guard por si habia un future de IA en vuelo
     _repartirNuevaRonda(); // reparte sin tocar piedras (no pasa por _finalizarRondaEquipos)
     _mensaje = 'Mano anulada. Se reparte de nuevo.';
@@ -1462,7 +1591,7 @@ void _jugadorDesconectado(String idInvitado) {
                     ),
                   ),
                 ),
-                if (!_enRed || _soyAnfitrion)
+                if (!_rondaTerminada)
                   Align(
                     alignment: Alignment.centerRight,
                     child: GestureDetector(
