@@ -427,11 +427,38 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   }
 
   // ===== Jugar una carta =====
+  // Cartas que YO puedo jugar ahora mismo, aplicando el arrastre.
+  // Reutiliza TrickEngine.cartasValidas (misma regla que los demas modos).
+  // Cartas validas de una mano cuando el oponente ya puso 'cartaOponente'
+  // (null si nadie ha abierto la baza aun). Aplica el arrastre.
+  List<CardModel> _cartasValidasDe(
+      List<CardModel> mano, CardModel? cartaOponente) {
+    if (cartaOponente == null || _paloVirado == null) {
+      return mano; // abre la baza: puede tirar lo que quiera
+    }
+    final baza = [PlayedCard(playerId: 'op', card: cartaOponente)];
+    return TrickEngine.cartasValidas(
+      mano: mano,
+      paloInicialBaza: cartaOponente.suit,
+      paloDeLaMano: _paloVirado!,
+      baza: baza,
+    );
+  }
+
+  List<CardModel> _misCartasValidas() =>
+      _cartasValidasDe(_miMano, _cartaRival);
+
+  bool _puedoJugar(CardModel carta) {
+    return _misCartasValidas().any(
+        (c) => c.suit == carta.suit && c.value == carta.value);
+  }
+
   void _jugarCarta(CardModel carta) {
     if (_rondaTerminada) return;
     if (_quienDecideTumbo != -1) return; // hay un tumbo por decidir
     if (_enviteCantado) return;          // hay un envite por responder
     if (_turno != _miAsiento) return;    // no es mi turno
+    if (!_puedoJugar(carta)) return;     // arrastre: la carta no es valida ahora
 
     if (widget.soyAnfitrion) {
       _anfitrionJuegaCarta(0, carta);
@@ -446,6 +473,12 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // El anfitrión procesa que el invitado jugó.
   void _anfitrionRecibeJugada(CardModel carta) {
+    // El oponente del invitado es el anfitrion: su carta (si ya jugo en
+    // esta baza) define el palo inicial. Validar el arrastre.
+    final validas = _cartasValidasDe(_manoInvitado, _cartaMia);
+    final esValida =
+        validas.any((c) => c.suit == carta.suit && c.value == carta.value);
+    if (!esValida) return; // jugada ilegal del invitado: se ignora
     _anfitrionJuegaCarta(1, carta);
   }
 
