@@ -133,6 +133,108 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   }
 
   // ===== ANFITRIÓN: reparte y manda el estado =====
+  // ===== Renuncio (anular la mano y repartir de nuevo, sin puntuar) =====
+
+  // Pulsar el boton RENUNCIO: pide confirmacion y, si acepta, propone al rival.
+  void _pedirRenuncio() {
+    if (_rondaTerminada) return; // no tiene sentido renunciar sin mano en juego
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B3D2E),
+        title: const Text('Renunciar a la mano',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'Se propone anular esta mano y repartir de nuevo. Nadie suma piedras. El rival debe aceptar. Seguro?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _proponerRenuncioAlRival();
+            },
+            child: const Text('Proponer', style: TextStyle(color: Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Envia la propuesta de renuncio al otro jugador y espera su respuesta.
+  void _proponerRenuncioAlRival() {
+    widget.conexion.enviar(
+        MensajeRed(TipoMensaje.proponerRenuncio, {}).codificar());
+    setState(() {
+      _mensaje = 'Renuncio propuesto. Esperando al rival...';
+    });
+  }
+
+  // Muestra el dialogo de voto cuando el rival propone renuncio.
+  void _mostrarPropuestaRenuncio() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0B3D2E),
+        title: const Text('El rival propone renunciar',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'El rival quiere anular esta mano y repartir de nuevo. Nadie suma piedras. Aceptas?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _responderRenuncio(false);
+            },
+            child: const Text('No', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _responderRenuncio(true);
+            },
+            child: const Text('Si, renunciar',
+                style: TextStyle(color: Colors.orangeAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Responde a la propuesta del rival (acepta o rechaza).
+  void _responderRenuncio(bool acepta) {
+    if (widget.soyAnfitrion) {
+      // El anfitrion resuelve directamente.
+      _resolverRenuncio(acepta);
+    } else {
+      // El invitado manda su respuesta al anfitrion, que ejecuta.
+      widget.conexion.enviar(
+          MensajeRed(TipoMensaje.respuestaRenuncio, {'acepta': acepta})
+              .codificar());
+      if (!acepta) {
+        setState(() {
+          _mensaje = 'Has rechazado el renuncio. Seguid jugando.';
+        });
+      }
+    }
+  }
+
+  // Solo el anfitrion ejecuta: si se acepta, reparte de nuevo sin puntuar.
+  void _resolverRenuncio(bool acepta) {
+    if (!acepta) {
+      setState(() {
+        _mensaje = 'Renuncio rechazado. Seguid jugando.';
+      });
+      _enviarEstado();
+      return;
+    }
+    _repartirComoAnfitrion(); // reparte sin tocar piedras y envia estado
+  }
+
   void _repartirComoAnfitrion() {
     _reproducirEfecto('sonido_reparto.mp3');
     final mazo = DeckGenerator.generateShuffledDeck();
@@ -242,11 +344,20 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         _enviarEstado();
       } else if (msg.tipo == TipoMensaje.decisionTumbo) {
         _anfitrionResuelveTumbo(msg.datos['juega'] == true);
+      } else if (msg.tipo == TipoMensaje.proponerRenuncio) {
+        // El invitado propone renuncio: el anfitrion decide.
+        _mostrarPropuestaRenuncio();
+      } else if (msg.tipo == TipoMensaje.respuestaRenuncio) {
+        // El invitado respondio a una propuesta del anfitrion.
+        _resolverRenuncio(msg.datos['acepta'] == true);
       }
     } else {
       // El invitado recibe el estado del anfitrión.
       if (msg.tipo == TipoMensaje.estado) {
         _invitadoRecibeEstado(msg.datos);
+      } else if (msg.tipo == TipoMensaje.proponerRenuncio) {
+        // El anfitrion propone renuncio: el invitado decide.
+        _mostrarPropuestaRenuncio();
       }
     }
   }
@@ -775,6 +886,31 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                         ),
                       ),
                     ),
+                    if (!_rondaTerminada)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: _pedirRenuncio,
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.black26,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              widthFactor: 1,
+                              child: Text('RENUNCIO',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    letterSpacing: 1,
+                                  )),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

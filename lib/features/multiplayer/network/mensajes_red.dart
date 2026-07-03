@@ -14,6 +14,10 @@ class TipoMensaje {
   static const String decisionTumbo = 'DEC_TUMBO';
   // Saludo inicial para confirmar conexión / apodo.
   static const String hola = 'HOLA';
+  // Renuncio (anular la mano y repartir de nuevo sin puntuar).
+  // Un jugador lo propone; el otro acepta o rechaza.
+  static const String proponerRenuncio = 'PROP_RENUNCIO';
+  static const String respuestaRenuncio = 'RESP_RENUNCIO';
 }
 
 /// Utilidad para crear y leer mensajes en formato texto (JSON).
