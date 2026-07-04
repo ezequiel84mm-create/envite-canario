@@ -155,15 +155,41 @@ class ConexionSala {
         type: InternetAddressType.IPv4,
         includeLoopback: false,
       );
+
+      bool esPrivada(String ip) =>
+          ip.startsWith('192.168.') ||
+          ip.startsWith('10.') ||
+          ip.startsWith('172.');
+
+      // 1) Preferir la interfaz WiFi (en0 en iOS/macOS) con IP privada.
+      //    Evita coger interfaces secundarias (VPN, Private Relay, hotspot)
+      //    que a veces dan un 10.x al que el invitado no puede conectarse.
       for (final interfaz in interfaces) {
-        for (final addr in interfaz.addresses) {
-          if (addr.address.startsWith('192.168.') ||
-              addr.address.startsWith('10.') ||
-              addr.address.startsWith('172.')) {
-            return addr.address;
+        if (interfaz.name == 'en0') {
+          for (final addr in interfaz.addresses) {
+            if (esPrivada(addr.address)) return addr.address;
           }
         }
       }
+
+      // 2) Cualquier interfaz, pero priorizando 192.168.x (WiFi domestica
+      //    tipica) sobre 10.x / 172.x.
+      String? ip192;
+      String? ipOtra;
+      for (final interfaz in interfaces) {
+        for (final addr in interfaz.addresses) {
+          final ip = addr.address;
+          if (ip.startsWith('192.168.')) {
+            ip192 ??= ip;
+          } else if (ip.startsWith('10.') || ip.startsWith('172.')) {
+            ipOtra ??= ip;
+          }
+        }
+      }
+      if (ip192 != null) return ip192;
+      if (ipOtra != null) return ipOtra;
+
+      // 3) Ultimo recurso: la primera direccion disponible.
       if (interfaces.isNotEmpty && interfaces.first.addresses.isNotEmpty) {
         return interfaces.first.addresses.first.address;
       }
