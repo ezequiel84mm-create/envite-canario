@@ -10,7 +10,6 @@
 // NOTA: no incluye envites ni tumbo (dependen de la UI); cubre la lógica
 // central de reparto, jerarquía, validación, IA y conteo.
 
-import 'package:envite_canario/core/enums/suit.dart';
 import 'package:envite_canario/features/game/data/models/card_model.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/deal_engine_2v2.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/trick_engine_3v3.dart';

@@ -23,7 +23,7 @@ class _OptionsScreenState extends State<OptionsScreen> {
           ),
           // Capa oscura suave para mejorar legibilidad
           Positioned.fill(
-            child: Container(color: Colors.black.withOpacity(0.15)),
+            child: Container(color: Colors.black.withValues(alpha: 0.15)),
           ),
           SafeArea(
             child: Column(
@@ -254,7 +254,7 @@ class _PanelToggle extends StatelessWidget {
           Switch(
             value: valor,
             onChanged: onCambio,
-            activeColor: const Color(0xFFEFAF1F),
+            activeThumbColor: const Color(0xFFEFAF1F),
             activeTrackColor: const Color(0xFF8A6A35),
           ),
         ],
