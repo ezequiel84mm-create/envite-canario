@@ -39,8 +39,20 @@ class EstadoSala {
   int get equipoA => asientos.where((a) => a.equipo == 0 && !a.estaVacio).length;
   int get equipoB => asientos.where((a) => a.equipo == 1 && !a.estaVacio).length;
 
-  // ¿Se puede empezar? Al menos 1 humano y los dos equipos con el mismo nº.
-  bool get sePuedeEmpezar => humanos >= 1 && equipoA == equipoB && equipoA >= 1;
+  // ¿Se puede empezar? Debe haber al menos un humano, ambos equipos equilibrados
+  // y todos los jugadores humanos deben haber marcado 'listo'.
+  bool get todosHumanosListos => asientos
+      .where((a) => !a.estaVacio && !a.esIA)
+      .every((a) => a.ocupante!.listo);
+
+  // Solo se puede empezar con un modo COMPLETO: 4 (2v2), 6 (3v3) u 8 (4v4)
+  // jugadores, con los equipos igualados y todos los humanos listos. No se
+  // permite empezar con asientos vacios ni con solo 2 (para eso esta el 1v1).
+  bool get sePuedeEmpezar =>
+      humanos >= 1 &&
+      (ocupados == 4 || ocupados == 6 || ocupados == 8) &&
+      equipoA == equipoB &&
+      todosHumanosListos;
 
   // Busca el asiento que ocupa un jugador (por id), o null.
   Asiento? asientoDe(String jugadorId) {
