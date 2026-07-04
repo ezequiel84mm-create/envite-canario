@@ -95,6 +95,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _repartoPlayer = AudioPlayer(); // dedicado al sonido de reparto (no lo pisa el silbido)
   bool _repartiendoAnim = false; // muestra la animacion de reparto
+  bool _primerEstadoInvitado = true; // para animar el reparto de la 1a mano
 
   // Reproduce el canto de voz según el nivel de apuesta.
   // nivel 1=Envido, 2=Siete, 3=Nueve, 4=Chico Fuera.
@@ -429,6 +430,34 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   void _invitadoRecibeEstado(Map<String, dynamic> d) {
     final anteriorDialogo = _pendienteDialogo;
+    // Detectar un reparto nuevo para lanzar animacion + sonido en el invitado.
+    // Se detecta por TRANSICION: antes habia mano en curso (cartas en mesa,
+    // bazas ganadas o ronda terminada) y ahora llega un estado limpio (baza
+    // vacia y nadie con bazas). Asi no depende de contar cartas exactas.
+    final bazaNueva = (d['baza'] as List?) ?? [];
+    final bazasNuevas = ((d['bazasAsiento'] as List?) ?? [])
+        .map((e) => e as int)
+        .toList();
+    final ahoraLimpio =
+        bazaNueva.isEmpty && bazasNuevas.isNotEmpty && bazasNuevas.every((b) => b == 0);
+    final antesEnJuego = _baza.isNotEmpty ||
+        _bazasAsiento.any((b) => b > 0) ||
+        _rondaTerminada;
+    // La primera vez que llega un estado con mano repartida tambien cuenta,
+    // aunque no haya transicion previa (es el reparto de la primera mano).
+    final esPrimerReparto = _primerEstadoInvitado && ahoraLimpio;
+    if (ahoraLimpio) _primerEstadoInvitado = false;
+    final esRepartoNuevo =
+        ahoraLimpio && (antesEnJuego || esPrimerReparto) && !_repartiendoAnim;
+    if (esRepartoNuevo) {
+      if (AppSettings.instance.efectosActivados) {
+        _repartoPlayer.play(AssetSource('audio/sonido_reparto.mp3'));
+      }
+      _repartiendoAnim = true;
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (mounted) setState(() => _repartiendoAnim = false);
+      });
+    }
     setState(() {
       _vira = TraductorCartas.desdeTexto(d['vira'])!;
       _paloVirado = _vira.suit;
