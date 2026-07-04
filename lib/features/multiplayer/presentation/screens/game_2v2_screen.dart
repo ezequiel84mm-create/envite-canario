@@ -593,6 +593,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     widget.conexion?.alRecibirDeInvitado = null;
     widget.conexion?.alRecibirDeAnfitrion = null;
     widget.conexion?.alPerderAnfitrion = null;
+    // Al salir de la partida se vuelve al menu principal, asi que cerramos
+    // la conexion para liberar el puerto y poder crear una sala nueva.
+    widget.conexion?.cerrar();
     _sfxPlayer.dispose();
     _repartoPlayer.dispose();
     MusicController.instance.reanudar();
