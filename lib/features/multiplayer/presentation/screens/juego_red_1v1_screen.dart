@@ -11,7 +11,9 @@ import '../../network/mensajes_red.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
 import '../../network/traductor_cartas.dart';
+import '../../domain/engine/envite_tumbo_1v1_logic.dart';
 import '../widgets/widgets_mesa.dart';
+import '../widgets/animacion_reparto_1v1.dart';
 
 /// Pantalla de juego 1vs1 en red (Capa 1: repartir, jugar cartas, ganar manos).
 /// El ANFITRIÓN tiene la lógica; el INVITADO muestra lo que recibe.
@@ -45,6 +47,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _manosInvitado = 0;
   String _mensaje = '';
   bool _rondaTerminada = false;
+  bool _repartiendoAnim = false;
 
   // ===== Estado del envite (Pieza 1: esqueleto) =====
   // Piedras y chicos de cada jugador (perspectiva del anfitrión).
@@ -68,6 +71,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   // ¿Esta mano es de tumbo (vale 3)? Y ¿quién debe decidir? (-1 nadie)
   bool _manoEsDeTumbo = false;
   int _quienDecideTumbo = -1;
+  EnviteTumbo1v1Logic _enviteTumboLogic = const EnviteTumbo1v1Logic();
 
   // Solo el anfitrión usa esto:
   List<CardModel> _manoAnfitrion = [];
@@ -104,6 +108,32 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   void _reproducirEfecto(String archivo) {
     if (!AppSettings.instance.efectosActivados) return;
     _sfxPlayer.play(AssetSource('audio/$archivo'));
+  }
+
+  void _sincronizarEstadoEnviteTumbo(EnviteTumbo1v1Logic logic) {
+    _enviteTumboLogic = logic;
+    _nivelApuesta = logic.nivelApuesta;
+    _enviteCantado = logic.enviteCantado;
+    _quienCanto = logic.quienCanto;
+    _nivelPropuesto = logic.nivelPropuesto;
+    _turnoApuesta = logic.turnoApuesta;
+    _manoEsDeTumbo = logic.manoEsDeTumbo;
+    _quienDecideTumbo = logic.quienDecideTumbo;
+  }
+
+  void _reiniciarEnviteTumboParaNuevaMano() {
+    final anfitrionEnTumbo = _piedrasAnfitrion == 11;
+    final invitadoEnTumbo = _piedrasInvitado == 11;
+
+    if (anfitrionEnTumbo && invitadoEnTumbo) {
+      _sincronizarEstadoEnviteTumbo(const EnviteTumbo1v1Logic(manoEsDeTumbo: true));
+    } else if (anfitrionEnTumbo) {
+      _sincronizarEstadoEnviteTumbo(const EnviteTumbo1v1Logic(quienDecideTumbo: 0));
+    } else if (invitadoEnTumbo) {
+      _sincronizarEstadoEnviteTumbo(const EnviteTumbo1v1Logic(quienDecideTumbo: 1));
+    } else {
+      _sincronizarEstadoEnviteTumbo(const EnviteTumbo1v1Logic());
+    }
   }
 
   @override
@@ -237,6 +267,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   void _repartirComoAnfitrion() {
     _reproducirEfecto('sonido_reparto.mp3');
+    _repartiendoAnim = true;
     final mazo = DeckGenerator.generateShuffledDeck();
     _manoAnfitrion = mazo.sublist(0, 3);
     _manoInvitado = mazo.sublist(3, 6);
@@ -248,10 +279,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _rondaTerminada = false;
     _manosAnfitrion = 0;
     _manosInvitado = 0;
-    _enviteCantado = false;
-    _quienCanto = -1;
-    _turnoApuesta = -1;
-    _manoEsDeTumbo = false;
+    _reiniciarEnviteTumboParaNuevaMano();
 
     // Tumbo: comprobamos quien tiene 11 piedras.
     final anfitrionEnTumbo = _piedrasAnfitrion == 11;
@@ -259,26 +287,16 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
     if (anfitrionEnTumbo && invitadoEnTumbo) {
       // TUMBO FORZOSO: ambos a 11 -> obligatorio jugar, sin decision.
-      _manoEsDeTumbo = true;
-      _quienDecideTumbo = -1;
-    } else if (anfitrionEnTumbo) {
-      _quienDecideTumbo = 0; // el anfitrion decide
-    } else if (invitadoEnTumbo) {
-      _quienDecideTumbo = 1; // el invitado decide
+      _mensaje = '🔥 ¡Tumbo forzoso! Hay que jugar.';
+    } else if (_quienDecideTumbo == 0) {
+      _mensaje = 'Decides el tumbo...';
+    } else if (_quienDecideTumbo == 1) {
+      _mensaje = 'El rival decide el tumbo...';
     } else {
-      _quienDecideTumbo = -1;
+      _mensaje = 'Tu turno';
     }
 
     _miMano = _manoAnfitrion;
-    if (anfitrionEnTumbo && invitadoEnTumbo) {
-      _mensaje = '🔥 ¡Tumbo forzoso! Hay que jugar.';
-    } else if (_quienDecideTumbo == -1) {
-      _mensaje = 'Tu turno';
-    } else if (_quienDecideTumbo == 0) {
-      _mensaje = 'Decides el tumbo...';
-    } else {
-      _mensaje = 'El rival decide el tumbo...';
-    }
     setState(() {});
     _enviarEstado();
   }
@@ -303,13 +321,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       'piedrasInvitado': _piedrasInvitado,
       'chicosAnfitrion': _chicosAnfitrion,
       'chicosInvitado': _chicosInvitado,
-      'nivelApuesta': _nivelApuesta,
-      'enviteCantado': _enviteCantado,
-      'quienCanto': _quienCanto,
-      'nivelPropuesto': _nivelPropuesto,
-      'turnoApuesta': _turnoApuesta,
-      'manoEsDeTumbo': _manoEsDeTumbo,
-      'quienDecideTumbo': _quienDecideTumbo,
+      ..._enviteTumboLogic.toMap(),
       'vozAsiento0': _vozAsiento0,
       'vozAsiento1': _vozAsiento1,
       'pendienteDialogo': _pendienteDialogo,
@@ -373,7 +385,18 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _vira = d['vira'] != null ? TraductorCartas.desdeTexto(d['vira']) : null;
       _paloVirado = _vira?.suit;
       _miMano = TraductorCartas.listaDesdeTexto(d['manoInvitado'] ?? []);
-        _numCartasRivalRecibidas = d['numCartasAnfitrion'] ?? 3;
+      _numCartasRivalRecibidas = d['numCartasAnfitrion'] ?? 3;
+      _sincronizarEstadoEnviteTumbo(
+        EnviteTumbo1v1Logic.fromMap({
+          'nivelApuesta': d['nivelApuesta'] ?? 0,
+          'enviteCantado': d['enviteCantado'] ?? false,
+          'quienCanto': d['quienCanto'] ?? -1,
+          'nivelPropuesto': d['nivelPropuesto'] ?? 0,
+          'turnoApuesta': d['turnoApuesta'] ?? -1,
+          'manoEsDeTumbo': d['manoEsDeTumbo'] ?? false,
+          'quienDecideTumbo': d['quienDecideTumbo'] ?? -1,
+        }),
+      );
       // Para el invitado: "mía" es la del invitado, "rival" la del anfitrión.
       _cartaMia = d['cartaInvitado'] != null
           ? TraductorCartas.desdeTexto(d['cartaInvitado'])
@@ -417,6 +440,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         (manosAntes > 0 || !teniaCartas);
     if (esRepartoNuevo) {
       _reproducirEfecto('sonido_reparto.mp3');
+      _repartiendoAnim = true; // activar la animacion visual en el invitado
+      Future.delayed(const Duration(milliseconds: 1400), () {
+        if (mounted) setState(() => _repartiendoAnim = false);
+      });
     }
     // Si apareció un envite nuevo (o subió de nivel), suena el canto.
     final hayEnviteNuevo = _enviteCantado &&
@@ -659,8 +686,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     if (_enviteCantado) return;          // ya hay uno pendiente
     if (_rondaTerminada) return;
     if (_nivelApuesta >= 4) return;      // ya esta en el maximo
-    // Solo puede cantar quien tenga el turno de apuesta (o cualquiera si -1).
-    if (_turnoApuesta != -1 && _turnoApuesta != _miAsiento) return;
+    if (!_enviteTumboLogic.puedeCantar(_miAsiento)) return;
 
     if (widget.soyAnfitrion) {
       _anfitrionRegistraCanto(0);        // el anfitrion canta (asiento 0)
@@ -675,11 +701,10 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // El anfitrion registra que alguien (asiento) cantó un envite.
   void _anfitrionRegistraCanto(int asiento) {
-    if (_enviteCantado) return;
-    if (_nivelApuesta >= 4) return;
-    _enviteCantado = true;
-    _quienCanto = asiento;
-    _nivelPropuesto = _nivelApuesta + 1;
+    if (_enviteTumboLogic.enviteCantado || _enviteTumboLogic.nivelApuesta >= 4) return;
+
+    final siguiente = _enviteTumboLogic.registrarCanto(asiento);
+    _sincronizarEstadoEnviteTumbo(siguiente);
     _sonidoApuesta(_nivelPropuesto, asientoCanta: asiento);
     _mensaje = asiento == 0
         ? 'Cantaste. Esperando al rival...'
@@ -705,29 +730,17 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // El anfitrion resuelve la respuesta al envite.
   void _anfitrionResuelveRespuesta(String accion) {
-    if (!_enviteCantado) return;
+    if (!_enviteTumboLogic.hayEnvitePendiente) return;
+
+    final siguiente = _enviteTumboLogic.responder(accion);
+    _sincronizarEstadoEnviteTumbo(siguiente);
 
     if (accion == 'juego') {
-      // Aceptar: la apuesta sube al nivel propuesto.
-      // El que acepto es el rival del que canto; solo el podra recantar.
-      final aceptante = _quienCanto == 0 ? 1 : 0;
-      _nivelApuesta = _nivelPropuesto;
-      _enviteCantado = false;
-      _quienCanto = -1;
-      _turnoApuesta = aceptante; // solo el que acepto puede subir
       _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
-      // NO QUIERO = juega con lo que tenemos: se queda en el ultimo nivel
-      // aceptado (_nivelApuesta sin tocar) y la mano sigue. Se cobra al ganar.
-      _enviteCantado = false;
-      _quienCanto = -1;
-      _turnoApuesta = -1;
       _mensaje = 'Juegan con lo apostado.';
     } else if (accion == 'subir') {
-      // Subir: reenvida al siguiente nivel; ahora responde el otro.
-      _nivelPropuesto = _nivelPropuesto + 1;
       _sonidoApuesta(_nivelPropuesto, asientoCanta: _quienCanto);
-      _quienCanto = _quienCanto == 0 ? 1 : 0; // cambia quien espera respuesta
       _mensaje = 'Envite subido. ¡Responde!';
     }
     setState(() {});
@@ -784,27 +797,25 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   }
 
   void _anfitrionResuelveTumbo(bool juega) {
-    if (_quienDecideTumbo == -1) return;
-    final quien = _quienDecideTumbo;
+    if (!_enviteTumboLogic.hayDecisionTumbo) return;
+
+    final quien = _enviteTumboLogic.quienDecideTumbo;
+    final siguiente = _enviteTumboLogic.decidirTumbo(juega);
+    _sincronizarEstadoEnviteTumbo(siguiente);
 
     if (juega) {
-      // Jugar el tumbo: la mano vale 3, se juega normal.
-      _manoEsDeTumbo = true;
-      _quienDecideTumbo = -1;
       _mensaje = quien == 0
           ? 'El anfitrión juega el tumbo (vale 3)'
           : 'El invitado juega el tumbo (vale 3)';
       setState(() {});
       _enviarEstado();
     } else {
-      // Retirarse: el rival gana 1 piedra, nueva ronda.
       final rival = quien == 0 ? 1 : 0;
       if (rival == 0) {
         _piedrasAnfitrion += 1;
       } else {
         _piedrasInvitado += 1;
       }
-      _quienDecideTumbo = -1;
       _mensaje = quien == 0
           ? 'El anfitrión se retira. Invitado gana 1.'
           : 'El invitado se retira. Anfitrión gana 1.';
@@ -882,280 +893,366 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B3D2E),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-          child: Column(
-            children: [
-              // Cabecera: volver + titulo
-              SizedBox(
-                height: 36,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    const Center(
-                      child: Text('ENVITE',
-                          style: TextStyle(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+              child: Column(
+                children: [
+                  // Cabecera: volver + titulo
+                  SizedBox(
+                    height: 36,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Center(
+                          child: Text(
+                            'ENVITE',
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
                               fontSize: 22,
                               letterSpacing: 2,
-                              fontFamily: 'Georgia')),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: () =>
-                            Navigator.of(context).popUntil((r) => r.isFirst),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.chevron_left,
-                              color: Colors.white, size: 24),
-                        ),
-                      ),
-                    ),
-                    if (!_rondaTerminada)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: GestureDetector(
-                          onTap: _pedirRenuncio,
-                          child: Container(
-                            height: 36,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.black26,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Center(
-                              widthFactor: 1,
-                              child: Text('RENUNCIO',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    letterSpacing: 1,
-                                  )),
+                              fontFamily: 'Georgia',
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 2),
-              if (enTumbo)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade900,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text('\u{1F525} TUMBO',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              // Marcador: RIVAL (rojo) - chicos (negro) - TU (azul)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFFC24747), Color(0xFF8F2424)],
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: GestureDetector(
+                            onTap: () => Navigator.of(context)
+                                .popUntil((r) => r.isFirst),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.black26,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.chevron_left,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
                         ),
-                        border: Border.all(color: Colors.white24),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                      child: Column(
-                        children: [
-                          const Text('RIVAL',
-                              style: TextStyle(
-                                  fontSize: 11, color: Color(0xFFFCEBEB))),
-                          const SizedBox(height: 6),
-                          Garbanzos(
-                              piedras: piedrasRival,
-                              color: const Color(0xFFE3C28A)),
-                          const SizedBox(height: 6),
-                          Text('$piedrasRival piedras',
-                              style: const TextStyle(
-                                  fontSize: 9, color: Color(0xFFF7C1C1))),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    width: 56,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF2A2A2A), Color(0xFF111111)],
-                      ),
-                      border: Border.all(color: Colors.white12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      children: [
-                        Text('$chicosRival - $misChicos',
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        const SizedBox(height: 2),
-                        const Text('chicos',
-                            style: TextStyle(
-                                fontSize: 8, color: Color(0xFFB4B2A9))),
+                        if (!_rondaTerminada)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: _pedirRenuncio,
+                              child: Container(
+                                height: 36,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black26,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Center(
+                                  widthFactor: 1,
+                                  child: Text(
+                                    'RENUNCIO',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Container(
+                  const SizedBox(height: 2),
+                  if (enTumbo)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFF2E78C9), Color(0xFF154A82)],
-                        ),
-                        border: Border.all(color: Colors.white24),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.red.shade900,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-                      child: Column(
-                        children: [
-                          const Text('TÚ',
-                              style: TextStyle(
-                                  fontSize: 11, color: Color(0xFFE6F1FB))),
-                          const SizedBox(height: 6),
-                          Garbanzos(
-                              piedras: misPiedras,
-                              color: const Color(0xFFE3C28A)),
-                          const SizedBox(height: 6),
-                          Text('$misPiedras piedras',
-                              style: const TextStyle(
-                                  fontSize: 9, color: Color(0xFFB5D4F4))),
-                        ],
+                      child: const Text(
+                        '🔥 TUMBO',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Rival: pila ganada + abanico boca abajo
-              const Text('Rival',
-                  style: TextStyle(color: Colors.white, fontSize: 15)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  PilaGanada(cantidad: manosRival, label: 'Rival'),
-                  const SizedBox(width: 50),
-                  AbanicoCartas(
-                    anchoCarta: 78,
-                    altoCarta: 108,
-                    solapamiento: 35,
-                    cartas: List.generate(
-                        numCartasRival,
-                        (_) => Container(
-                          width: 65,
-                          height: 90,
+                  // Marcador: RIVAL (rojo) - chicos (negro) - TU (azul)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border:
-                                Border.all(color: Colors.white24, width: 1.5),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFFC24747),
+                                Color(0xFF8F2424),
+                              ],
+                            ),
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Image.asset('assets/cards/trasera.png',
-                              fit: BoxFit.cover),
-                        )),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              // Centro: vira + cartas jugadas
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(children: [
-                    const SizedBox(height: 6),
-                    _vira != null
-                        ? CardWidget(card: _vira!, width: 102, height: 162)
-                        : const SizedBox(width: 102, height: 162),
-                  ]),
-                  const SizedBox(width: 10),
-                  Column(children: [
-                    const SizedBox(height: 6),
-                    _cartaRival != null
-                        ? CardWidget(card: _cartaRival!, width: 102, height: 162)
-                        : const SizedBox(width: 102, height: 162),
-                  ]),
-                  const SizedBox(width: 10),
-                  Column(children: [
-                    const SizedBox(height: 6),
-                    _cartaMia != null
-                        ? CardWidget(card: _cartaMia!, width: 102, height: 162)
-                        : const SizedBox(width: 102, height: 162),
-                  ]),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text('${_manoEsDeTumbo ? 3 : [2, 4, 7, 9, 12][_nivelApuesta]} piedras',
-                  style: const TextStyle(
-                      color: Colors.orangeAccent, fontSize: 14)),
-              // Controles del envite / tumbo
-              _controlesEnvite(),
-              if (_mensaje.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(_mensaje,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.greenAccent)),
-              ],
-              const SizedBox(height: 20),
-              // Tu zona: abanico (tus cartas) + pila ganada
-              const Text('Tú',
-                  style: TextStyle(color: Colors.white, fontSize: 15)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  AbanicoCartas(
-                    anchoCarta: 78,
-                    altoCarta: 108,
-                    solapamiento: 35,
-                    cartas: _miMano.map((c) {
-                      return GestureDetector(
-                        onTap: esMiTurno ? () => _jugarCarta(c) : null,
-                        child: Opacity(
-                          opacity: esMiTurno ? 1.0 : 0.45,
-                          child: CardWidget(card: c),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 6,
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'RIVAL',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFFCEBEB),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Garbanzos(
+                                piedras: piedrasRival,
+                                color: const Color(0xFFE3C28A),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '$piedrasRival piedras',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0xFFF7C1C1),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFF2A2A2A),
+                              Color(0xFF111111),
+                            ],
+                          ),
+                          border: Border.all(color: Colors.white12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(
+                          children: [
+                            Text(
+                              '$chicosRival - $misChicos',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'chicos',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Color(0xFFB4B2A9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFF2E78C9),
+                                Color(0xFF154A82),
+                              ],
+                            ),
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 6,
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'TÚ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFFE6F1FB),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Garbanzos(
+                                piedras: misPiedras,
+                                color: const Color(0xFFE3C28A),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                '$misPiedras piedras',
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Color(0xFFB5D4F4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 50),
-                  PilaGanada(cantidad: misManos, label: 'Tú'),
+                  const SizedBox(height: 12),
+                  // Rival: pila ganada + abanico boca abajo
+                  const Text(
+                    'Rival',
+                    style: TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      PilaGanada(cantidad: manosRival, label: 'Rival'),
+                      const SizedBox(width: 50),
+                      AbanicoCartas(
+                        anchoCarta: 78,
+                        altoCarta: 108,
+                        solapamiento: 35,
+                        cartas: List.generate(
+                          numCartasRival,
+                          (_) => Container(
+                            width: 65,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white24,
+                                width: 1.5,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset(
+                              'assets/cards/trasera.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  // Centro: vira + cartas jugadas
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(children: [
+                        const SizedBox(height: 6),
+                        _vira != null
+                            ? CardWidget(card: _vira!, width: 102, height: 162)
+                            : const SizedBox(width: 102, height: 162),
+                      ]),
+                      const SizedBox(width: 10),
+                      Column(children: [
+                        const SizedBox(height: 6),
+                        _cartaRival != null
+                            ? CardWidget(
+                                card: _cartaRival!,
+                                width: 102,
+                                height: 162,
+                              )
+                            : const SizedBox(width: 102, height: 162),
+                      ]),
+                      const SizedBox(width: 10),
+                      Column(children: [
+                        const SizedBox(height: 6),
+                        _cartaMia != null
+                            ? CardWidget(card: _cartaMia!, width: 102, height: 162)
+                            : const SizedBox(width: 102, height: 162),
+                      ]),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${_manoEsDeTumbo ? 3 : [2, 4, 7, 9, 12][_nivelApuesta]} piedras',
+                    style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontSize: 14,
+                    ),
+                  ),
+                  // Controles del envite / tumbo
+                  _controlesEnvite(),
+                  if (_mensaje.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      _mensaje,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.greenAccent),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  // Tu zona: abanico (tus cartas) + pila ganada
+                  const Text(
+                    'Tú',
+                    style: TextStyle(color: Colors.white, fontSize: 15),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      AbanicoCartas(
+                        anchoCarta: 78,
+                        altoCarta: 108,
+                        solapamiento: 35,
+                        cartas: _miMano.map((c) {
+                          return GestureDetector(
+                            onTap: esMiTurno ? () => _jugarCarta(c) : null,
+                            child: Opacity(
+                              opacity: esMiTurno ? 1.0 : 0.45,
+                              child: CardWidget(card: c),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(width: 50),
+                      PilaGanada(cantidad: misManos, label: 'Tú'),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (_repartiendoAnim)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimacionReparto1v1(
+                  onCompleta: () {
+                    if (mounted) {
+                      setState(() => _repartiendoAnim = false);
+                    }
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
