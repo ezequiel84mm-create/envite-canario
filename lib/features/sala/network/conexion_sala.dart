@@ -174,7 +174,11 @@ class ConexionSala {
   }
 
   void cerrar() {
-    for (final socket in _invitados.values) {
+    // Copia con toList(): al destruir un socket se dispara su onDone, que
+    // hace _invitados.remove(...). Si iteraramos sobre _invitados.values
+    // directamente, esa modificacion daria ConcurrentModificationError y
+    // dejaria la conexion a medio cerrar (bloqueando crear otra sala).
+    for (final socket in _invitados.values.toList()) {
       try {
         socket.destroy();
       } catch (_) {}
