@@ -11,6 +11,9 @@ class TipoMensajeSala {
   // INVITADO -> ANFITRIÓN: "quiero sentarme en el asiento N".
   static const String elegirAsiento = 'SALA_ELEGIR_ASIENTO';
 
+  // CUALQUIERA -> ANFITRIÓN: "cambio mi estado de listo".
+  static const String toggleListo = 'SALA_TOGGLE_LISTO';
+
   // ANFITRIÓN -> TODOS: "la partida empieza".
   static const String empezar = 'SALA_EMPEZAR';
 

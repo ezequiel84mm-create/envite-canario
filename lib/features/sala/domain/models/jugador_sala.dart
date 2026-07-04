@@ -4,11 +4,13 @@ class JugadorSala {
   final String id;       // identificador único (ej. id de conexión, o 'ia_3')
   final String apodo;    // nombre que se muestra en su asiento
   final bool esIA;       // true si lo controla el anfitrión como IA
+  final bool listo;      // true si el jugador ya confirmó que está listo
 
   const JugadorSala({
     required this.id,
     required this.apodo,
     this.esIA = false,
+    this.listo = false,
   });
 
   // Crea un jugador IA con un apodo automático.
@@ -17,6 +19,7 @@ class JugadorSala {
       id: 'ia_$numero',
       apodo: 'IA $numero',
       esIA: true,
+      listo: true,
     );
   }
 
@@ -26,6 +29,7 @@ class JugadorSala {
       'id': id,
       'apodo': apodo,
       'esIA': esIA,
+      'listo': listo,
     };
   }
 
@@ -34,6 +38,7 @@ class JugadorSala {
       id: m['id'] ?? '',
       apodo: m['apodo'] ?? 'Jugador',
       esIA: m['esIA'] ?? false,
+      listo: m['listo'] ?? false,
     );
   }
 }
