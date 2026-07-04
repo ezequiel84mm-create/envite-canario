@@ -514,9 +514,14 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   @override
   void dispose() {
+    // Anular TODOS los callbacks de red antes de cerrar. Al cerrar se
+    // destruyen los sockets y eso dispara sus onDone (desconexion); si el
+    // callback siguiera activo, llamaria a setState sobre la pantalla que se
+    // esta cerrando y reventaria.
     widget.conexion?.alRecibirDeInvitado = null;
     widget.conexion?.alRecibirDeAnfitrion = null;
     widget.conexion?.alPerderAnfitrion = null;
+    widget.conexion?.alDesconectarInvitado = null;
     // Al salir de la partida se vuelve al menu principal, asi que cerramos
     // la conexion para liberar el puerto y poder crear una sala nueva.
     widget.conexion?.cerrar();

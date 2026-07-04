@@ -618,6 +618,8 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
     widget.conexion?.alRecibirDeInvitado = null;
     widget.conexion?.alRecibirDeAnfitrion = null;
     widget.conexion?.alPerderAnfitrion = null;
+    widget.conexion?.alDesconectarInvitado = null;
+    widget.conexion?.alPerderAnfitrion = null;
     // Al salir de la partida se vuelve al menu principal, asi que cerramos
     // la conexion para liberar el puerto y poder crear una sala nueva.
     widget.conexion?.cerrar();

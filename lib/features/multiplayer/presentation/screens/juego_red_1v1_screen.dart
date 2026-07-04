@@ -674,7 +674,11 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   @override
   void dispose() {
-    widget.conexion.alRecibir = null; // dejar de escuchar antes de cerrar
+    // Anular los callbacks de red antes de cerrar: al cerrar se destruyen los
+    // sockets y eso dispara la desconexion; sin anular, llamaria a la UI de
+    // una pantalla que ya se esta cerrando.
+    widget.conexion.alRecibir = null;
+    widget.conexion.alDesconectar = null;
     MusicController.instance.reanudar();
     _sfxPlayer.dispose();
     widget.conexion.cerrar();
