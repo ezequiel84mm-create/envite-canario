@@ -134,6 +134,16 @@ class _EscanerSalaScreen extends StatefulWidget {
 
 class _EscanerSalaScreenState extends State<_EscanerSalaScreen> {
   bool _yaDetectado = false;
+  // Controlador propio para gestionar bien el ciclo de vida del escaner.
+  // Sin esto, al abrir/cerrar/reabrir el escaner (sobre todo en macOS) sale
+  // el error 'the scanner was already started'.
+  final MobileScannerController _escaner = MobileScannerController();
+
+  @override
+  void dispose() {
+    _escaner.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +154,7 @@ class _EscanerSalaScreenState extends State<_EscanerSalaScreen> {
       ),
       backgroundColor: Colors.black,
       body: MobileScanner(
+        controller: _escaner,
         onDetect: (captura) {
           if (_yaDetectado) return;
           final codigos = captura.barcodes;

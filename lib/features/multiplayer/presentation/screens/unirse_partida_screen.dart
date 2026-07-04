@@ -189,6 +189,15 @@ class _EscanerQRScreen extends StatefulWidget {
 
 class _EscanerQRScreenState extends State<_EscanerQRScreen> {
   bool _yaDetectado = false;
+  // Controlador propio para gestionar el ciclo de vida del escaner y evitar
+  // el error 'the scanner was already started' al reabrirlo.
+  final MobileScannerController _escaner = MobileScannerController();
+
+  @override
+  void dispose() {
+    _escaner.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +208,7 @@ class _EscanerQRScreenState extends State<_EscanerQRScreen> {
       ),
       backgroundColor: Colors.black,
       body: MobileScanner(
+        controller: _escaner,
         onDetect: (captura) {
           if (_yaDetectado) return;
           final codigos = captura.barcodes;
