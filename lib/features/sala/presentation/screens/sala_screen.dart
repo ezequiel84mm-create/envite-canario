@@ -56,6 +56,9 @@ class _SalaScreenState extends State<SalaScreen> {
       } else if (msg.tipo == TipoMensajeSala.elegirAsiento) {
         final numero = msg.datos['asiento'] ?? -1;
         _moverInvitado(idInvitado, numero);
+      } else if (msg.tipo == TipoMensajeSala.toggleListo) {
+        final idJugador = msg.datos['id'] ?? '';
+        _cambiarListo(idJugador);
       }
     };
     _conexion.alDesconectarInvitado = (idInvitado) {
@@ -85,7 +88,11 @@ class _SalaScreenState extends State<SalaScreen> {
       orElse: () => _sala.asientos.first,
     );
     if (!libre.estaVacio) return;
-    libre.ocupante = JugadorSala(id: idInvitado, apodo: _aliasUnico(alias));
+    libre.ocupante = JugadorSala(
+      id: idInvitado,
+      apodo: _aliasUnico(alias),
+      listo: true, // listo automatico al sentarse (sin paso manual)
+    );
     // Le decimos al invitado cuál es su id (para que sepa quién es).
     _conexion.enviarA(idInvitado, MensajeRed(
       TipoMensajeSala.tuId,
@@ -116,6 +123,22 @@ class _SalaScreenState extends State<SalaScreen> {
     }
   }
 
+  void _cambiarListo(String idJugador) {
+    final asiento = _sala.asientoDe(idJugador);
+    if (asiento == null || asiento.ocupante == null || asiento.ocupante!.esIA) {
+      return;
+    }
+    final anterior = asiento.ocupante!;
+    asiento.ocupante = JugadorSala(
+      id: anterior.id,
+      apodo: anterior.apodo,
+      esIA: anterior.esIA,
+      listo: !anterior.listo,
+    );
+    setState(() {});
+    _repartirEstadoSala();
+  }
+
   void _repartirEstadoSala() {
     final msg = MensajeRed(
       TipoMensajeSala.estadoSala,
@@ -132,7 +155,9 @@ class _SalaScreenState extends State<SalaScreen> {
       if (msg.tipo == TipoMensajeSala.estadoSala) {
         setState(() {
           _sala = EstadoSala.desdeMapa(msg.datos);
-          _estado = 'En la sala. Esperando al anfitrión...';
+          _estado = _sala.sePuedeEmpezar
+              ? '¡Todos listos! El anfitrión puede empezar.'
+              : 'En la sala. Esperando al anfitrión...';
         });
       } else if (msg.tipo == TipoMensajeSala.tuId) {
         _miIdInvitado = msg.datos['id'] ?? '';
@@ -165,6 +190,29 @@ class _SalaScreenState extends State<SalaScreen> {
     asiento.ocupante = null;
     setState(() {});
     _repartirEstadoSala();
+  }
+
+  String? _miIdLocal() {
+    if (widget.soyAnfitrion) return 'anfitrion';
+    return _miIdInvitado.isEmpty ? null : _miIdInvitado;
+  }
+
+  bool _esMiJugador(Asiento asiento) {
+    final miId = _miIdLocal();
+    return miId != null && asiento.ocupante?.id == miId;
+  }
+
+  void _toggleListoLocal() {
+    final miId = _miIdLocal();
+    if (miId == null) return;
+    if (widget.soyAnfitrion) {
+      _cambiarListo(miId);
+    } else {
+      _conexion.enviarAlAnfitrion(MensajeRed(
+        TipoMensajeSala.toggleListo,
+        {'id': miId},
+      ).codificar());
+    }
   }
 
   // Navega a la pantalla de juego.
@@ -241,6 +289,7 @@ class _SalaScreenState extends State<SalaScreen> {
     _sala.asientos[0].ocupante = JugadorSala(
       id: 'anfitrion',
       apodo: AppSettings.instance.alias,
+      listo: true,
     );
     setState(() => _estado = 'Abriendo sala...');
 
@@ -367,7 +416,17 @@ class _SalaScreenState extends State<SalaScreen> {
   // El boton consume su propio toque (no dispara el 'sentarme' de fuera).
   Widget _fichaAsientoConBoton(Asiento asiento) {
     final ficha = _fichaAsiento(asiento);
-    if (!widget.soyAnfitrion) return ficha;
+    if (!widget.soyAnfitrion) {
+      return GestureDetector(
+        onTap: () {
+          if (asiento.estaVacio) return;
+          if (_esMiJugador(asiento)) {
+            _toggleListoLocal();
+          }
+        },
+        child: ficha,
+      );
+    }
     // Solo mostramos boton en asientos vacios o con IA (no humanos).
     final mostrarBoton = asiento.estaVacio || asiento.esIA;
     if (!mostrarBoton) return ficha;
@@ -450,6 +509,17 @@ class _SalaScreenState extends State<SalaScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    asiento.ocupante!.listo ? 'LISTO' : 'PENDIENTE',
+                    style: TextStyle(
+                      color: asiento.ocupante!.listo
+                          ? const Color(0xFF8BC34A)
+                          : const Color(0xFFE3C28A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
