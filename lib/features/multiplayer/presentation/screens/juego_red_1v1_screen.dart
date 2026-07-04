@@ -605,6 +605,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   bool _dialogoDesconexionAbierto = false;
   void _mostrarOtroDesconectado() {
+    if (!mounted) return; // el widget ya se esta cerrando
     if (_dialogoDesconexionAbierto) return;
     _dialogoDesconexionAbierto = true;
     showDialog(

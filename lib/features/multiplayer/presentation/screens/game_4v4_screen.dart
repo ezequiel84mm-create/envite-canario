@@ -1400,6 +1400,7 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
 
   // Equipo (0/1) de un asiento, según la config de la sala o paridad.
 void _jugadorDesconectado(String idInvitado) {
+    if (!mounted) return;
     final cfg = widget.config;
     if (cfg == null) return;
     final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);

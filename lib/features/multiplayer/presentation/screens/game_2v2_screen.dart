@@ -731,6 +731,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   }
 
 void _jugadorDesconectado(String idInvitado) {
+    if (!mounted) return;
     final cfg = widget.config;
     if (cfg == null) return;
     final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);

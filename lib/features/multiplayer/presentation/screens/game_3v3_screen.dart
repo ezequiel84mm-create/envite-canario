@@ -1422,6 +1422,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
 
   // Un invitado se desconectó a media partida: su asiento pasa a IA.
   void _jugadorDesconectado(String idInvitado) {
+    // Si el widget ya se esta cerrando (dispose cierra la conexion y eso
+    // dispara este callback), no tocar el estado ni la UI.
+    if (!mounted) return;
     final cfg = widget.config;
     if (cfg == null) return;
     final idx = cfg.jugadores.indexWhere((j) => j.id == idInvitado);
