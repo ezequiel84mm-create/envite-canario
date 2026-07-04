@@ -28,8 +28,18 @@ class ConexionP2P {
   /// Devuelve la dirección IP local (el "código" a compartir).
   Future<String?> crearComoAnfitrion() async {
     try {
-      _servidor = await ServerSocket.bind(InternetAddress.anyIPv4, puerto,
-          shared: true); // reutiliza el puerto sin esperar al TIME_WAIT
+      // Un solo servidor por puerto (sin shared) para no repartir conexiones
+      // con un servidor viejo a medio cerrar. Reintentos por si el puerto
+      // sigue en TIME_WAIT tras salir de una partida anterior.
+      _servidor = null;
+      for (int intento = 0; intento < 6 && _servidor == null; intento++) {
+        try {
+          _servidor = await ServerSocket.bind(InternetAddress.anyIPv4, puerto);
+        } catch (_) {
+          await Future.delayed(const Duration(milliseconds: 400));
+        }
+      }
+      if (_servidor == null) return null;
       _servidor!.listen((socket) {
         // Solo aceptamos un invitado (1vs1).
         if (_socket != null) {

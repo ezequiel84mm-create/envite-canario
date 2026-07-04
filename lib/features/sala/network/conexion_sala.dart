@@ -34,8 +34,18 @@ class ConexionSala {
   Future<String?> crearSala() async {
     try {
       soyAnfitrion = true;
-      _servidor = await ServerSocket.bind(InternetAddress.anyIPv4, puerto,
-          shared: true); // reutiliza el puerto sin esperar al TIME_WAIT
+      // Un solo servidor por puerto (sin shared) para que las conexiones no
+      // se repartan con un servidor viejo a medio cerrar. Si el puerto sigue
+      // ocupado tras salir de una partida (TIME_WAIT), reintentamos.
+      _servidor = null;
+      for (int intento = 0; intento < 6 && _servidor == null; intento++) {
+        try {
+          _servidor = await ServerSocket.bind(InternetAddress.anyIPv4, puerto);
+        } catch (_) {
+          await Future.delayed(const Duration(milliseconds: 400));
+        }
+      }
+      if (_servidor == null) return null; // no se pudo abrir el puerto
       _servidor!.listen((socket) {
         if (_invitados.length >= maxInvitados) {
           socket.close();
