@@ -419,9 +419,10 @@ class _SalaScreenState extends State<SalaScreen> {
     if (!widget.soyAnfitrion) {
       return GestureDetector(
         onTap: () {
-          if (asiento.estaVacio) return;
-          if (_esMiJugador(asiento)) {
-            _toggleListoLocal();
+          if (asiento.estaVacio) {
+            _pedirAsiento(asiento.numero); // moverse al asiento vacio
+          } else if (_esMiJugador(asiento)) {
+            _toggleListoLocal(); // tocar mi propio asiento: marcar/desmarcar listo
           }
         },
         child: ficha,
