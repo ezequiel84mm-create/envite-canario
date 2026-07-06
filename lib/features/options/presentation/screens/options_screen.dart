@@ -98,6 +98,11 @@ class _OptionsScreenState extends State<OptionsScreen> {
                         onCambio: (v) => setState(() => settings.setDificultad(v)),
                       ),
                       const SizedBox(height: 14),
+                      _PanelBaraja(
+                        idActual: settings.baraja,
+                        onCambio: (id) => setState(() => settings.setBaraja(id)),
+                      ),
+                      const SizedBox(height: 14),
                       _PanelVoz(
                         titulo: 'Mi voz',
                         icono: Icons.record_voice_over,
@@ -620,6 +625,65 @@ class _PanelVoz extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               vozActual.nombre,
+              style: const TextStyle(
+                color: Color(0xFFEFAF1F),
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          _Flecha(icono: Icons.chevron_right, onTap: () => cambiar(1)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelBaraja extends StatelessWidget {
+  final String idActual;
+  final ValueChanged<String> onCambio;
+
+  const _PanelBaraja({required this.idActual, required this.onCambio});
+
+  @override
+  Widget build(BuildContext context) {
+    // Lista de barajas disponibles: id interno + nombre visible
+    const barajas = [
+      ['espanola', 'Española'],
+      ['canaria', 'Canaria'],
+    ];
+    var indice = barajas.indexWhere((b) => b[0] == idActual);
+    if (indice < 0) indice = 0;
+    final nombreActual = barajas[indice][1];
+
+    void cambiar(int paso) {
+      final n = barajas.length;
+      final nuevo = (indice + paso + n) % n;
+      onCambio(barajas[nuevo][0]);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xCC2A1A0A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x66E3C28A), width: 1),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.style, color: Color(0xFFE3C28A), size: 22),
+          const SizedBox(width: 12),
+          const Text(
+            'Baraja',
+            style: TextStyle(color: Color(0xFFF5E6C8), fontSize: 16),
+          ),
+          const Spacer(),
+          _Flecha(icono: Icons.chevron_left, onTap: () => cambiar(-1)),
+          Container(
+            constraints: const BoxConstraints(minWidth: 84),
+            alignment: Alignment.center,
+            child: Text(
+              nombreActual,
               style: const TextStyle(
                 color: Color(0xFFEFAF1F),
                 fontSize: 15,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/card_model.dart';
+import '../../../../core/settings/mazo_assets.dart';
 
 class CardWidget extends StatelessWidget {
   final CardModel card;
@@ -27,7 +28,7 @@ class CardWidget extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Image.asset(
-          'assets/cards/trasera.png',
+          MazoAssets.trasera,
           fit: BoxFit.cover,
         ),
       );
@@ -45,7 +46,7 @@ class CardWidget extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Image.asset(
-        'assets/cards/${card.assetName}',
+        MazoAssets.carta(card.assetName),
         fit: BoxFit.cover,
       ),
     );

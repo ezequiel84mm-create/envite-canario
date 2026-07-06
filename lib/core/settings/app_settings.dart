@@ -17,6 +17,7 @@ class AppSettings extends ChangeNotifier {
   int _dificultadIA = 1; // 0 = Fácil, 1 = Normal, 2 = Difícil
   String _vozPropia = 'zeky';
   String _vozRival = 'manolo';
+  String _baraja = 'espanola'; // 'espanola' o 'canaria'
   String _alias = ''; // se rellena al cargar
 
   bool get musicaActivada => _musicaActivada;
@@ -24,6 +25,7 @@ class AppSettings extends ChangeNotifier {
   int get dificultadIA => _dificultadIA;
   String get vozPropia => _vozPropia;
   String get vozRival => _vozRival;
+  String get baraja => _baraja;
   String get alias => _alias;
 
   String get nombreDificultad {
@@ -47,6 +49,7 @@ class AppSettings extends ChangeNotifier {
     _dificultadIA = p.getInt('dificultad') ?? 1;
     _vozPropia = p.getString('vozPropia') ?? 'zeky';
     _vozRival = p.getString('vozRival') ?? 'manolo';
+    _baraja = p.getString('baraja') ?? 'espanola';
 
     // Alias: si no hay uno guardado, generamos uno por defecto y lo guardamos.
     final guardado = p.getString('alias');
@@ -86,6 +89,12 @@ class AppSettings extends ChangeNotifier {
   void setVozRival(String id) {
     _vozRival = id;
     _prefs?.setString('vozRival', id);
+    notifyListeners();
+  }
+
+  void setBaraja(String id) {
+    _baraja = id;
+    _prefs?.setString('baraja', id);
     notifyListeners();
   }
 

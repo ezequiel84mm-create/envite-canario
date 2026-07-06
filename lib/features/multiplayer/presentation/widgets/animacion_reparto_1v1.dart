@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/settings/mazo_assets.dart';
 
 /// Animación visual simple para el reparto en 1vs1.
 /// Recorre cartas desde el centro hacia la zona del rival, la zona propia y
@@ -73,8 +74,8 @@ class _AnimacionReparto1v1State extends State<AnimacionReparto1v1>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: Colors.white24, width: 1),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/cards/trasera.png'),
+                    image: DecorationImage(
+                      image: AssetImage(MazoAssets.trasera),
                       fit: BoxFit.cover,
                     ),
                   ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../../core/settings/mazo_assets.dart';
 import '../../../sala/domain/models/config_partida.dart';
 import '../../../sala/network/conexion_sala.dart';
 import '../../../sala/network/mensajes_sala.dart';
@@ -1860,7 +1861,7 @@ void _jugadorDesconectado(String idInvitado) {
                 border: Border.all(color: Colors.white24, width: 1),
               ),
               clipBehavior: Clip.antiAlias,
-              child: Image.asset('assets/cards/trasera.png', fit: BoxFit.cover),
+              child: Image.asset(MazoAssets.trasera, fit: BoxFit.cover),
             ),
           );
         }),

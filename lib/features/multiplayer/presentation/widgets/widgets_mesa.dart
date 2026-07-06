@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/settings/mazo_assets.dart';
 
 /// Garbanzos: representación tradicional canaria de las piedras.
 class Garbanzos extends StatelessWidget {
@@ -147,7 +148,7 @@ class PilaGanada extends StatelessWidget {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Image.asset(
-                        'assets/cards/trasera.png',
+                        MazoAssets.trasera,
                         fit: BoxFit.cover,
                       ),
                     ),

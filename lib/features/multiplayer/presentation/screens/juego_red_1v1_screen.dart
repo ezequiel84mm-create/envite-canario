@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/settings/mazo_assets.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/music_controller.dart';
 import '../../../../core/enums/suit.dart';
@@ -1155,7 +1156,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Image.asset(
-                              'assets/cards/trasera.png',
+                              MazoAssets.trasera,
                               fit: BoxFit.cover,
                             ),
                           ),

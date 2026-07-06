@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/settings/mazo_assets.dart';
 
 /// Animacion de reparto para los modos de equipo (2v2/3v3/4v4).
 /// Reparte cartas boca abajo desde la posicion del barajador hacia cada
@@ -118,8 +119,8 @@ class _AnimacionRepartoEquiposState extends State<AnimacionRepartoEquipos>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: Colors.white24, width: 1),
-                        image: const DecorationImage(
-                          image: AssetImage('assets/cards/trasera.png'),
+                        image: DecorationImage(
+                          image: AssetImage(MazoAssets.trasera),
                           fit: BoxFit.cover,
                         ),
                       ),

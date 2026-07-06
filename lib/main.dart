@@ -2,6 +2,7 @@ import 'dart:math';
 import 'core/settings/voces.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'core/settings/mazo_assets.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'core/settings/app_settings.dart';
 import 'core/enums/suit.dart';
@@ -191,7 +192,7 @@ class _PilaGanada extends StatelessWidget {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: Image.asset(
-                        'assets/cards/trasera.png',
+                        MazoAssets.trasera,
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -1112,8 +1113,8 @@ class _AnimacionRepartoState extends State<_AnimacionReparto>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: Colors.white24, width: 1),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/cards/trasera.png'),
+                    image: DecorationImage(
+                      image: AssetImage(MazoAssets.trasera),
                       fit: BoxFit.cover,
                     ),
                   ),
