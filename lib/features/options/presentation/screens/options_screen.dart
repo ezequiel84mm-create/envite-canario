@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/settings/app_settings.dart';
 import '../../../../core/settings/voces.dart';
 
@@ -187,6 +188,41 @@ class _OptionsScreenState extends State<OptionsScreen> {
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              // Botón Invítame a un café -> abre ventana de donación
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _mostrarDonacion(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 22),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.coffee, color: Color(0xFF3A2B12), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Invítame a un café',
+                        style: TextStyle(
+                          color: Color(0xFF3A2B12),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 18),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
@@ -218,6 +254,161 @@ class _OptionsScreenState extends State<OptionsScreen> {
     );
   }
 }
+
+  void _mostrarQrCompleto(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      builder: (_) => GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Container(
+          color: Colors.transparent,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Image.asset(
+                  'assets/donacion/qr_paypal.jpg',
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Toca para cerrar',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDonacion(BuildContext context) {
+    Future<void> abrirPayPal() async {
+      final uri = Uri.parse('https://www.paypal.me/eMejMar');
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo abrir PayPal')),
+          );
+        }
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF8A6A35), width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Invítame a un café',
+                style: TextStyle(
+                  fontFamily: 'Georgia',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF9A3A0A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Si te gusta el juego y quieres\napoyar su desarrollo, ¡gracias!',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF3A2B12), height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => _mostrarQrCompleto(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1),
+                  ),
+                  child: Image.asset(
+                    'assets/donacion/qr_paypal.jpg',
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Escanéalo o púlsalo para ampliarlo',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Color(0xFF8A7040)),
+              ),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: abrirPayPal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF8A6A35), width: 1.5),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.open_in_new, color: Color(0xFF3A2B12), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Abrir PayPal',
+                        style: TextStyle(
+                          color: Color(0xFF3A2B12),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Text(
+                  'Cerrar',
+                  style: TextStyle(
+                    color: Color(0xFF6B5424),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
 class _PanelToggle extends StatelessWidget {
   final IconData icono;

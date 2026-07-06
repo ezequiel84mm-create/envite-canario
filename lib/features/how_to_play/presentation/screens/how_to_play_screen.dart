@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/reglas.dart';
 import '../../../quick_guide/presentation/screens/quick_guide_screen.dart';
+import 'primeros_pasos_screen.dart';
 
 class HowToPlayScreen extends StatelessWidget {
   const HowToPlayScreen({super.key});
@@ -38,6 +39,33 @@ class HowToPlayScreen extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
+                      GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrimerosPasosScreen())),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 9),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFFEFAF1F), Color(0xFFC8870F)],
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: const Color(0xFF8A6A35), width: 1.2),
+                          ),
+                          child: const Text(
+                            'PRIMEROS PASOS',
+                            style: TextStyle(
+                              color: Color(0xFF3A2B12),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickGuideScreen())),
                         child: Container(
