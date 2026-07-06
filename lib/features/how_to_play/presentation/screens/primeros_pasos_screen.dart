@@ -69,22 +69,24 @@ class _PrimerosPasosScreenState extends State<PrimerosPasosScreen>
                 ),
               ),
             ),
-            // Botón de cerrar arriba a la izquierda
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
+            // Botón de cerrar arriba a la izquierda (fijo, por encima del scroll)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.black45,
+                      color: Colors.black54,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.close,
-                        color: Colors.white, size: 24),
+                        color: Colors.white, size: 26),
                   ),
                 ),
               ),

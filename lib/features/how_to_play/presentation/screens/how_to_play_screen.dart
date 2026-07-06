@@ -25,17 +25,21 @@ class HowToPlayScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                   child: Row(
                     children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.black26,
-                            borderRadius: BorderRadius.circular(8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => Navigator.of(context).pop(),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.chevron_left,
+                                color: Colors.white, size: 26),
                           ),
-                          child: const Icon(Icons.chevron_left,
-                              color: Colors.white, size: 26),
                         ),
                       ),
                       const Spacer(),
