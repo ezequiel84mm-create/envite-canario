@@ -116,6 +116,8 @@ class TrickEngine4v4 {
     List<CartaJugada2v2> baza = const [],
     int asiento = -1,
     int Function(int)? equipoDe,
+    int Function(int)? siguienteAsiento, // orden de juego (para saber quién falta)
+    int numJugadores = 4,
   }) {
     if (paloInicialBaza == null) {
       return mano;
@@ -164,6 +166,21 @@ class TrickEngine4v4 {
       return mano; // mi equipo ya gana: tiro libre
     }
 
+    // Si todavía queda un COMPAÑERO por tirar detrás de mí en esta baza,
+    // no estoy obligado a montar: puede ganar él. Tiro libre.
+    if (asiento >= 0 &&
+        equipoDe != null &&
+        siguienteAsiento != null &&
+        _quedaCompaneroPorTirar(
+          baza: baza,
+          asiento: asiento,
+          numJugadores: numJugadores,
+          equipoDe: equipoDe,
+          siguienteAsiento: siguienteAsiento,
+        )) {
+      return mano;
+    }
+
     // Montar solo si SUPERA al que va ganando.
     final lider = _cartaLider(baza, paloVirado);
     final puntLider = lider == null
@@ -193,6 +210,29 @@ class TrickEngine4v4 {
       }
     }
     return lider;
+  }
+
+  /// ¿Queda algún COMPAÑERO de mi equipo por jugar todavía en esta baza?
+  /// Recorre el orden de juego desde el siguiente asiento hasta completar la
+  /// baza (numJugadores cartas). Si alguno de los que faltan es de mi equipo,
+  /// no estoy obligado a montar: puede ganar él.
+  static bool _quedaCompaneroPorTirar({
+    required List<CartaJugada2v2> baza,
+    required int asiento,
+    required int numJugadores,
+    required int Function(int) equipoDe,
+    required int Function(int) siguienteAsiento,
+  }) {
+    // Cuántos faltan por tirar después de que yo juegue.
+    final faltanTrasMi = numJugadores - baza.length - 1;
+    if (faltanTrasMi <= 0) return false; // soy el último: nadie detrás
+
+    int a = siguienteAsiento(asiento);
+    for (int i = 0; i < faltanTrasMi; i++) {
+      if (equipoDe(a) == equipoDe(asiento)) return true; // hay compañero detrás
+      a = siguienteAsiento(a);
+    }
+    return false;
   }
 
   static bool _miEquipoVaGanando({

@@ -28,6 +28,8 @@ class TrickEngine2v2 {
     List<CartaJugada2v2> baza = const [],
     int asiento = -1,
     int Function(int)? equipoDe,
+    int Function(int)? siguienteAsiento, // orden de juego (para saber quién falta)
+    int numJugadores = 4,
   }) {
     if (paloInicialBaza == null) {
       return mano;
@@ -63,6 +65,21 @@ class TrickEngine2v2 {
         _miEquipoVaGanando(
             baza: baza, asiento: asiento, paloVirado: paloVirado,
             equipoDe: equipoDe)) {
+      return mano;
+    }
+
+    // Si todavía queda un COMPAÑERO por tirar detrás de mí en esta baza,
+    // no estoy obligado a montar: puede ganar él. Tiro libre.
+    if (asiento >= 0 &&
+        equipoDe != null &&
+        siguienteAsiento != null &&
+        _quedaCompaneroPorTirar(
+          baza: baza,
+          asiento: asiento,
+          numJugadores: numJugadores,
+          equipoDe: equipoDe,
+          siguienteAsiento: siguienteAsiento,
+        )) {
       return mano;
     }
     // Mi equipo no va ganando. Solo me obligan a montar con un triunfo
@@ -107,6 +124,24 @@ class TrickEngine2v2 {
   }
 
   /// Va ganando la baza parcial el equipo del jugador en [asiento].
+  /// ¿Queda algún COMPAÑERO de mi equipo por jugar todavía en esta baza?
+  static bool _quedaCompaneroPorTirar({
+    required List<CartaJugada2v2> baza,
+    required int asiento,
+    required int numJugadores,
+    required int Function(int) equipoDe,
+    required int Function(int) siguienteAsiento,
+  }) {
+    final faltanTrasMi = numJugadores - baza.length - 1;
+    if (faltanTrasMi <= 0) return false;
+    int a = siguienteAsiento(asiento);
+    for (int i = 0; i < faltanTrasMi; i++) {
+      if (equipoDe(a) == equipoDe(asiento)) return true;
+      a = siguienteAsiento(a);
+    }
+    return false;
+  }
+
   static bool _miEquipoVaGanando({
     required List<CartaJugada2v2> baza,
     required int asiento,

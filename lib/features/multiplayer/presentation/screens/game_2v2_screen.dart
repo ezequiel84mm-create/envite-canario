@@ -78,6 +78,7 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   String _mensaje = '';
   bool _mensajeEsTurno = false; // si true, el invitado recalcula el texto
   bool _rondaTerminada = false;
+  bool _recogiendo = false; // candado: true mientras se recoge la baza
   int _numJug = 4; // jugadores en la partida (4, 6 u 8); 4 por defecto
   int _barajador = 0; // quién baraja esta mano; sale el de su izquierda
 
@@ -1223,6 +1224,8 @@ void _jugadorDesconectado(String idInvitado) {
       baza: _baza,
       asiento: asiento,
       equipoDe: _equipoDeAsiento,
+      siguienteAsiento: _siguienteEnCirculo,
+      numJugadores: _numJug,
     );
   }
 
@@ -1245,7 +1248,7 @@ void _jugadorDesconectado(String idInvitado) {
         }).codificar());
       return;
     }
-    if (_turno != 0 || _rondaTerminada) return;
+    if (_turno != 0 || _rondaTerminada || _recogiendo) return;
     final validas = _validasDe(0);
     if (!validas.contains(carta)) {
       setState(() => _mensaje = 'Esa carta no es válida ahora.');
@@ -1323,10 +1326,12 @@ void _jugadorDesconectado(String idInvitado) {
 
     setState(() {});
 
+    _recogiendo = true; // bloquea jugar durante la recogida
     // Pausa para que se vea la baza completa antes de limpiarla.
     if (_enRed && _soyAnfitrion) _enviarEstadoJuego();
     Future.delayed(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
+      _recogiendo = false; // fin de la recogida
       _baza = [];
       _reproducirEfecto('sonido_recoger_baraja.mp3');
       // La mano se gana al llegar a 2 bazas (no hace falta jugar la 3a).

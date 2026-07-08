@@ -48,6 +48,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _manosInvitado = 0;
   String _mensaje = '';
   bool _rondaTerminada = false;
+  bool _recogiendo = false; // candado: true mientras se recoge la baza
   bool _repartiendoAnim = false;
 
   // ===== Estado del envite (Pieza 1: esqueleto) =====
@@ -486,6 +487,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     if (_quienDecideTumbo != -1) return; // hay un tumbo por decidir
     if (_enviteCantado) return;          // hay un envite por responder
     if (_turno != _miAsiento) return;    // no es mi turno
+    if (_recogiendo) return;             // se está recogiendo la baza
     if (!_puedoJugar(carta)) return;     // arrastre: la carta no es valida ahora
 
     if (widget.soyAnfitrion) {
@@ -528,6 +530,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       // Mostramos las dos cartas un momento ANTES de resolver,
       // para que de tiempo a verlas en ambos dispositivos.
       _mensaje = 'Baza completa';
+      _recogiendo = true; // bloquea jugar durante la recogida
       _miMano = _manoAnfitrion;
       setState(() {});
       _enviarEstado();
@@ -574,6 +577,7 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     _cartaMia = null;
     _cartaRival = null;
     _abreBaza = -1; // baza cerrada, la siguiente la abre quien gano
+    _recogiendo = false; // fin de la recogida: ya se puede jugar
     _reproducirEfecto('sonido_recoger_baraja.mp3');
 
     // ¿Termina la ronda? Al ganar 2 bazas o agotarse las cartas.
