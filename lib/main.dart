@@ -2,6 +2,7 @@ import 'dart:math';
 import 'core/settings/voces.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'core/settings/mazo_assets.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'core/settings/app_settings.dart';
@@ -17,6 +18,13 @@ import 'features/game/presentation/widgets/card_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Bloquea la app en vertical: el layout (mesa, asientos, cartas) está
+  // diseñado en portrait y se deforma al girar el teléfono. Vale para
+  // iPhone y Android.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   await AppSettings.instance.cargar();
   runApp(const EnviteApp());
 }

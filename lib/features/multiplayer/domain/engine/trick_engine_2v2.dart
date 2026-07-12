@@ -166,6 +166,31 @@ class TrickEngine2v2 {
   }
 
   /// Determina quién gana una mano completa.
+  /// ¿La baza en curso ya está perdida para [equipo]? Es decir: la carta que
+  /// va ganando pertenece al equipo rival y ninguna de las [cartasEquipo]
+  /// (las que aún pueden jugar los miembros de [equipo] en esta baza) la
+  /// supera. La IA lo usa para no cantar/subir de farol cuando la carta
+  /// máxima ya está en la mesa del rival.
+  static bool bazaPerdidaPara({
+    required List<CartaJugada2v2> baza,
+    required int equipo,
+    required List<CardModel> cartasEquipo,
+    required Suit paloVirado,
+    required int Function(int) equipoDe,
+  }) {
+    final lider = _cartaLider(baza, paloVirado);
+    if (lider == null) return false; // baza vacía: nada perdido
+    if (equipoDe(lider.asiento) == equipo) return false; // vamos ganando
+    final paloInicial = baza.first.carta.suit;
+    final puntLider = _puntuacion(lider.carta, paloVirado, paloInicial);
+    for (final c in cartasEquipo) {
+      if (_puntuacion(c, paloVirado, paloInicial) > puntLider) {
+        return false; // alguien de mi equipo aún puede superarla
+      }
+    }
+    return true; // la carta ganadora es del rival y nadie de mi equipo la supera
+  }
+
   static CartaJugada2v2 determinarGanador({
     required List<CartaJugada2v2> jugadas,
     required Suit paloVirado,

@@ -34,7 +34,7 @@ class Sena {
 const _todos = {4, 6, 8};       // 2v2, 3v3, 4v4
 const _soloEquiposFijas = {6, 8}; // 3v3 y 4v4 (tienen fijas)
 
-/// Lista fija de las 10 señas disponibles (5 cartas + 5 situaciones).
+/// Lista fija de las 11 señas disponibles (5 cartas + 6 situaciones).
 const List<Sena> senasDisponibles = [
   // ===== Grupo 1: cartas principales (triunfos) =====
   Sena(
@@ -102,6 +102,13 @@ const List<Sena> senasDisponibles = [
     modos: _todos,
   ),
   Sena(
+    id: 'mordido',
+    emoji: '🫦',
+    nombre: 'Mordido (dos triunfos menores)',
+    gesto: 'morderse el labio inferior',
+    modos: _todos,
+  ),
+  Sena(
     id: 'silbido',
     emoji: '😗',
     nombre: 'Silbido (aviso a tu equipo)',
@@ -111,9 +118,9 @@ const List<Sena> senasDisponibles = [
   ),
 ];
 
-/// Las 5 señas de carta (grupo 1) y las 5 de situación (grupo 2).
+/// Las 5 señas de carta (grupo 1) y las 6 de situación (grupo 2).
 List<Sena> get senasCartas => senasDisponibles.sublist(0, 5);
-List<Sena> get senasSituaciones => senasDisponibles.sublist(5, 10);
+List<Sena> get senasSituaciones => senasDisponibles.sublist(5, 11);
 
 /// Busca una seña por su id. Devuelve null si no existe.
 Sena? senaPorId(String id) {

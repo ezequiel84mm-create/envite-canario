@@ -1,6 +1,9 @@
 // Simulador de partidas 2v2 todo-IA para detectar anomalías de lógica.
 // Uso:  cd ~/dev/envite_canario && dart run tools/simulador_2v2.dart
 
+// Script de diagnóstico por consola: el uso de print es intencionado.
+// ignore_for_file: avoid_print
+
 import 'package:envite_canario/features/game/data/models/card_model.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/deal_engine_2v2.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/trick_engine_2v2.dart';
@@ -113,7 +116,11 @@ void main() {
     }
 
     totalManos += manosJugadas;
-    if (chicos0 >= 4) ganaA++; else ganaB++;
+    if (chicos0 >= 4) {
+      ganaA++;
+    } else {
+      ganaB++;
+    }
     if (partida < 3) {
       print('Partida $partida: chicos $chicos0-$chicos1 en $manosJugadas manos');
     }

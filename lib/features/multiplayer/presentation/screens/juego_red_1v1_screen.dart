@@ -742,19 +742,47 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   void _anfitrionResuelveRespuesta(String accion) {
     if (!_enviteTumboLogic.hayEnvitePendiente) return;
 
+    // Capturamos quién cantó y el nivel aceptado ANTES de resolver, porque
+    // responder('paso') borra quienCanto.
+    final quienCanto = _enviteTumboLogic.quienCanto;
+    final nivelAceptado = _enviteTumboLogic.nivelApuesta;
+
     final siguiente = _enviteTumboLogic.responder(accion);
     _sincronizarEstadoEnviteTumbo(siguiente);
 
     if (accion == 'juego') {
       _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
-      _mensaje = 'Juegan con lo apostado.';
+      // NO QUIERO: la mano se acaba y se la lleva quien cantó/subió,
+      // cobrando el nivel aceptado (1 si aún no había envite aceptado).
+      _cerrarManoPorNoQuiero(quienCanto, nivelAceptado);
+      return;
     } else if (accion == 'subir') {
       _sonidoApuesta(_nivelPropuesto, asientoCanta: _quienCanto);
       _mensaje = 'Envite subido. ¡Responde!';
     }
     setState(() {});
     _enviarEstado();
+  }
+
+  // NO QUIERO: cierra la mano de inmediato adjudicándosela a [asientoGanador]
+  // (quien cantó/subió), cobrando el valor del nivel aceptado. Si aún no había
+  // envite aceptado (nivel 0), vale 1 piedra (igual que el 1v1 offline). El
+  // envite no se canta en tumbo, así que aquí no aplica la regla del tumbo.
+  void _cerrarManoPorNoQuiero(int asientoGanador, int nivelAceptado) {
+    final valores = [2, 4, 7, 9, 12];
+    final valorMano = nivelAceptado == 0 ? 1 : valores[nivelAceptado];
+    if (asientoGanador == 0) {
+      _piedrasAnfitrion += valorMano;
+    } else {
+      _piedrasInvitado += valorMano;
+    }
+    _ganadorDialogoAsiento = asientoGanador;
+    _piedrasSumadasDialogo = valorMano;
+    _mensaje = asientoGanador == 0
+        ? 'No quieren: mano para el anfitrión (+$valorMano)'
+        : 'No quieren: mano para el invitado (+$valorMano)';
+    _comprobarChicoYMostrarDialogo();
   }
 
   // Comprueba chico/partida y muestra el dialogo de fin de mano.

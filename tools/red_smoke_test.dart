@@ -1,3 +1,6 @@
+// Script de diagnóstico por consola: el uso de print es intencionado.
+// ignore_for_file: avoid_print
+
 import 'package:envite_canario/features/multiplayer/network/conexion_p2p.dart';
 
 Future<void> main() async {

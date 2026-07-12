@@ -30,6 +30,7 @@ class _SalaScreenState extends State<SalaScreen> {
   String _miIdInvitado = ''; // solo invitado: su id asignado por el anfitrión
   bool _yendoAlJuego = false; // si true, el dispose NO cierra la conexión
   String _estado = '';
+  int? _asientoSeleccionado; // anfitrión: asiento "cogido" para intercambiar
 
   @override
   void initState() {
@@ -83,11 +84,10 @@ class _SalaScreenState extends State<SalaScreen> {
 
   void _sentarInvitado(String idInvitado, String alias) {
     if (_sala.asientoDe(idInvitado) != null) return;
-    final libre = _sala.asientos.firstWhere(
-      (a) => a.estaVacio,
-      orElse: () => _sala.asientos.first,
-    );
-    if (!libre.estaVacio) return;
+    // Orden obligatorio: siempre al primer asiento libre (el más bajo).
+    final numeroLibre = _primerAsientoLibre();
+    if (numeroLibre == null) return; // mesa llena
+    final libre = _sala.asientos[numeroLibre];
     libre.ocupante = JugadorSala(
       id: idInvitado,
       apodo: _aliasUnico(alias),
@@ -102,22 +102,20 @@ class _SalaScreenState extends State<SalaScreen> {
     _repartirEstadoSala();
   }
 
+  // El orden de asientos es obligatorio (relleno automático en zigzag), así
+  // que ya no se permite que un invitado se mueva a mano. Se ignora para no
+  // dejar huecos que rompan la mesa. Se conserva por compatibilidad con
+  // clientes que aún manden el mensaje 'elegirAsiento'.
   void _moverInvitado(String idInvitado, int numero) {
-    if (numero < 0 || numero >= EstadoSala.totalAsientos) return;
-    final destino = _sala.asientos[numero];
-    if (!destino.estaVacio) return;
-    final actual = _sala.asientoDe(idInvitado);
-    if (actual == null) return;
-    destino.ocupante = actual.ocupante;
-    actual.ocupante = null;
-    setState(() {});
-    _repartirEstadoSala();
+    return;
   }
 
   void _quitarJugador(String idInvitado) {
     final a = _sala.asientoDe(idInvitado);
     if (a != null) {
       a.ocupante = null;
+      _asientoSeleccionado = null; // la disposición cambia: cancela selección
+      _compactarAsientos(); // cierra el hueco: la mesa nunca queda rota
       setState(() {});
       _repartirEstadoSala();
     }
@@ -147,6 +145,48 @@ class _SalaScreenState extends State<SalaScreen> {
     _conexion.enviarATodos(msg);
   }
 
+  // ===== ORDEN OBLIGATORIO DE ASIENTOS =====
+  // Los asientos SIEMPRE se rellenan en orden (0,1,2,3...), es decir en
+  // zigzag: arriba-izquierda, arriba-derecha, debajo del 1º, debajo del 2º,
+  // etc. Esto evita huecos que descuadran los equipos y rompen la mesa,
+  // porque el equipo va ligado al número de asiento.
+
+  // Devuelve el número del primer asiento libre (el más bajo), o null si la
+  // mesa está llena.
+  int? _primerAsientoLibre() {
+    for (final a in _sala.asientos) {
+      if (a.estaVacio) return a.numero;
+    }
+    return null;
+  }
+
+  // Reempaqueta a todos los ocupantes en los asientos 0..n-1, en su orden
+  // actual, sin dejar huecos. Se llama tras cualquier cambio (poner/quitar
+  // IA, desconexión...) para garantizar que la mesa nunca quede rota.
+  void _compactarAsientos() {
+    final ocupantes = _sala.asientos
+        .where((a) => !a.estaVacio)
+        .map((a) => a.ocupante!)
+        .toList(); // ya vienen en orden de asiento (0..7)
+    for (int i = 0; i < _sala.asientos.length; i++) {
+      _sala.asientos[i].ocupante = i < ocupantes.length ? ocupantes[i] : null;
+    }
+  }
+
+  // Elige un número de IA que no choque con las IA ya sentadas, para que su
+  // id ('ia_N') sea siempre único aunque se compacte la mesa.
+  int _siguienteNumeroIA() {
+    final usados = _sala.asientos
+        .where((a) => a.esIA)
+        .map((a) => a.ocupante!.id)
+        .toSet();
+    int n = 1;
+    while (usados.contains('ia_$n')) {
+      n++;
+    }
+    return n;
+  }
+
   // ===== INVITADO: callbacks de red =====
   void _configurarCallbacksInvitado() {
     _conexion.alRecibirDeAnfitrion = (texto) {
@@ -171,13 +211,15 @@ class _SalaScreenState extends State<SalaScreen> {
     };
   }
 
-  // El anfitrión pone una IA en un asiento vacío.
+  // El anfitrión añade una IA. Orden obligatorio: SIEMPRE va al primer
+  // asiento libre (el más bajo), sin importar dónde se pulse.
   void _ponerIA(int numero) {
     if (!widget.soyAnfitrion) return;
-    final asiento = _sala.asientos[numero];
-    if (!asiento.estaVacio) return;
-    // id único para la IA basado en el número de asiento.
-    asiento.ocupante = JugadorSala.ia(numero + 1);
+    final libre = _primerAsientoLibre();
+    if (libre == null) return; // mesa llena
+    // id único basado en las IA ya presentes (no en el asiento), para evitar
+    // choques de id al compactar la mesa.
+    _sala.asientos[libre].ocupante = JugadorSala.ia(_siguienteNumeroIA());
     setState(() {});
     _repartirEstadoSala();
   }
@@ -188,6 +230,48 @@ class _SalaScreenState extends State<SalaScreen> {
     final asiento = _sala.asientos[numero];
     if (asiento.estaVacio || !asiento.esIA) return;
     asiento.ocupante = null;
+    _asientoSeleccionado = null; // la disposición cambia: cancela selección
+    _compactarAsientos(); // cierra el hueco: reparto siempre contiguo
+    setState(() {});
+    _repartirEstadoSala();
+  }
+
+  // ===== INTERCAMBIO DE JUGADORES (solo anfitrión) =====
+  // El anfitrión puede reordenar a la gente para armar los equipos que
+  // quiera. Toca a un jugador (se resalta) y luego toca a otro: intercambian
+  // asiento. Nunca puede moverse a sí mismo (asiento 0 = cerebro), y como es
+  // un intercambio no se crean huecos: la mesa sigue contigua.
+  void _tapAnfitrionAsiento(Asiento asiento) {
+    if (!widget.soyAnfitrion) return;
+    if (asiento.numero == 0) return; // el anfitrión no se mueve
+    final sel = _asientoSeleccionado;
+    if (sel == null) {
+      if (asiento.estaVacio) return; // no hay nadie a quien coger
+      setState(() => _asientoSeleccionado = asiento.numero);
+    } else if (sel == asiento.numero) {
+      setState(() => _asientoSeleccionado = null); // toca el mismo: cancelar
+    } else {
+      _intercambiarAsientos(sel, asiento.numero);
+      setState(() => _asientoSeleccionado = null);
+    }
+  }
+
+  // Intercambia los ocupantes de dos asientos (el anfitrión, asiento 0, nunca
+  // se mueve). Compacta por seguridad para no dejar huecos.
+  void _intercambiarAsientos(int a, int b) {
+    if (a == 0 || b == 0) return;
+    if (a < 0 ||
+        b < 0 ||
+        a >= EstadoSala.totalAsientos ||
+        b >= EstadoSala.totalAsientos) {
+      return;
+    }
+    final asA = _sala.asientos[a];
+    final asB = _sala.asientos[b];
+    final tmp = asA.ocupante;
+    asA.ocupante = asB.ocupante;
+    asB.ocupante = tmp;
+    _compactarAsientos(); // mantiene la mesa contigua
     setState(() {});
     _repartirEstadoSala();
   }
@@ -244,24 +328,13 @@ class _SalaScreenState extends State<SalaScreen> {
     _irAlJuego();
   }
 
-  // El jugador local pide moverse a un asiento (si está libre).
+  // El reparto de asientos es automático y en orden obligatorio (zigzag),
+  // así que tocar un asiento vacío no hace nada: nadie elige sitio a mano.
+  // - El anfitrión se sienta siempre en el 0 y los demás se sientan al
+  //   conectarse en el primer hueco.
+  // - Para quitar/poner IA el anfitrión usa el botón propio de la ficha.
   void _pedirAsiento(int numero) {
-    final destino = _sala.asientos[numero];
-    // Tocar una IA o un humano no hace nada aquí: para quitar IA está su
-    // botón propio. Solo nos movemos a asientos vacíos.
-    if (!destino.estaVacio) return;
-    if (widget.soyAnfitrion) {
-      // El anfitrión SIEMPRE se queda en el asiento 0 (el juego asume que
-      // el cerebro está en el 0). No se permite moverlo para evitar
-      // descuadres de layout, cartas y señas.
-      return;
-    } else {
-      // El invitado manda la petición al anfitrión.
-      _conexion.enviarAlAnfitrion(MensajeRed(
-        TipoMensajeSala.elegirAsiento,
-        {'asiento': numero},
-      ).codificar());
-    }
+    return;
   }
 
   Future<void> _iniciarComoInvitado() async {
@@ -417,56 +490,92 @@ class _SalaScreenState extends State<SalaScreen> {
   Widget _fichaAsientoConBoton(Asiento asiento) {
     final ficha = _fichaAsiento(asiento);
     if (!widget.soyAnfitrion) {
+      // El asiento se asigna automáticamente en orden; el invitado solo puede
+      // marcar/desmarcar 'listo' tocando su propio asiento.
       return GestureDetector(
         onTap: () {
-          if (asiento.estaVacio) {
-            _pedirAsiento(asiento.numero); // moverse al asiento vacio
-          } else if (_esMiJugador(asiento)) {
-            _toggleListoLocal(); // tocar mi propio asiento: marcar/desmarcar listo
+          if (_esMiJugador(asiento)) {
+            _toggleListoLocal();
           }
         },
         child: ficha,
       );
     }
-    // Solo mostramos boton en asientos vacios o con IA (no humanos).
-    final mostrarBoton = asiento.estaVacio || asiento.esIA;
-    if (!mostrarBoton) return ficha;
+    // El botón '+IA' solo aparece en el PRIMER asiento libre (orden
+    // obligatorio); la 'x' de quitar aparece en cualquier asiento con IA.
     final esVacio = asiento.estaVacio;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ficha,
-        Positioned(
-          top: -6,
-          right: -6,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (esVacio) {
-                _ponerIA(asiento.numero);
-              } else {
-                _quitarIA(asiento.numero);
-              }
-            },
-            child: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: esVacio
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFB71C1C),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE3C28A), width: 1.5),
-              ),
-              child: Icon(
-                esVacio ? Icons.smart_toy : Icons.close,
-                color: Colors.white,
-                size: 14,
+    final esPrimerLibre = esVacio && asiento.numero == _primerAsientoLibre();
+    final mostrarBoton = esPrimerLibre || asiento.esIA;
+
+    // Resalta el asiento si está "cogido" para intercambiar.
+    Widget contenido = _resaltarSiSeleccionado(
+      ficha,
+      _asientoSeleccionado == asiento.numero,
+    );
+
+    if (mostrarBoton) {
+      contenido = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          contenido,
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (esVacio) {
+                  _ponerIA(asiento.numero);
+                } else {
+                  _quitarIA(asiento.numero);
+                }
+              },
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: esVacio
+                      ? const Color(0xFF2E7D32)
+                      : const Color(0xFFB71C1C),
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: const Color(0xFFE3C28A), width: 1.5),
+                ),
+                child: Icon(
+                  esVacio ? Icons.smart_toy : Icons.close,
+                  color: Colors.white,
+                  size: 14,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      );
+    }
+
+    // El anfitrión (asiento 0) no se puede coger ni mover. El resto de
+    // asientos son tocables para seleccionarlos e intercambiarlos.
+    if (asiento.numero == 0) return contenido;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _tapAnfitrionAsiento(asiento),
+      child: contenido,
+    );
+  }
+
+  // Envuelve una ficha con un borde/brillo dorado cuando está seleccionada
+  // para intercambiar.
+  Widget _resaltarSiSeleccionado(Widget ficha, bool seleccionado) {
+    if (!seleccionado) return ficha;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEFAF1F), width: 3),
+        boxShadow: const [
+          BoxShadow(color: Color(0xAAEFAF1F), blurRadius: 12, spreadRadius: 1),
+        ],
+      ),
+      child: ficha,
     );
   }
 
@@ -599,6 +708,29 @@ class _SalaScreenState extends State<SalaScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.soyAnfitrion)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _asientoSeleccionado == null
+                    ? 'Toca a dos jugadores para intercambiar sus sitios y armar los equipos.'
+                    : 'Toca otro asiento para intercambiar (o el mismo para cancelar).',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _asientoSeleccionado == null
+                      ? const Color(0xCCF5E6C8)
+                      : const Color(0xFFEFAF1F),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  shadows: const [
+                    Shadow(
+                        color: Colors.black,
+                        offset: Offset(0, 1),
+                        blurRadius: 3),
+                  ],
+                ),
+              ),
+            ),
           if (_estado.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),

@@ -134,7 +134,14 @@ class TrickEngine4v4 {
       return false;
     }
 
-    final baseEsTriunfo = paloInicialBaza == paloVirado;
+    // La baza se abrió con triunfo O con una fija (aunque su palo natural no
+    // sea el virado). Toda fija que sale de primera obliga a arrastrar. Las
+    // más altas (5 oros / 3 bastos) siguen sin poder forzarse como asistencia
+    // cuando arrastra otro (se pueden guardar); eso se resuelve más abajo con
+    // esTriunfoArrastre.
+    final cartaSalida = baza.isNotEmpty ? baza.first.carta : null;
+    final baseEsTriunfo = paloInicialBaza == paloVirado ||
+        (cartaSalida != null && esFija(cartaSalida));
     if (baseEsTriunfo) {
       final triunfos = mano.where(esTriunfoArrastre).toList();
       if (triunfos.isNotEmpty) {
@@ -252,6 +259,31 @@ class TrickEngine4v4 {
     }
     final eq = equipoDe ?? ((int a) => a % 2);
     return eq(lider.asiento) == eq(asiento);
+  }
+
+  /// ¿La baza en curso ya está perdida para [equipo]? Es decir: la carta que
+  /// va ganando pertenece al equipo rival y ninguna de las [cartasEquipo]
+  /// (las que aún pueden jugar los miembros de [equipo] en esta baza) la
+  /// supera. La IA lo usa para no cantar/subir de farol cuando la carta
+  /// máxima ya está en la mesa del rival.
+  static bool bazaPerdidaPara({
+    required List<CartaJugada2v2> baza,
+    required int equipo,
+    required List<CardModel> cartasEquipo,
+    required Suit paloVirado,
+    required int Function(int) equipoDe,
+  }) {
+    final lider = _cartaLider(baza, paloVirado);
+    if (lider == null) return false; // baza vacía: nada perdido
+    if (equipoDe(lider.asiento) == equipo) return false; // vamos ganando
+    final paloInicial = baza.first.carta.suit;
+    final puntLider = _puntuacion(lider.carta, paloVirado, paloInicial);
+    for (final c in cartasEquipo) {
+      if (_puntuacion(c, paloVirado, paloInicial) > puntLider) {
+        return false; // alguien de mi equipo aún puede superarla
+      }
+    }
+    return true; // la carta ganadora es del rival y nadie de mi equipo la supera
   }
 
   static CartaJugada2v2 determinarGanador({

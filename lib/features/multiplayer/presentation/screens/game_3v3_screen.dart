@@ -106,10 +106,10 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     const nombres = {1: 'envido', 2: 'siete', 3: 'nueve', 4: 'chico_fuera'};
     final nombre = nombres[nivel];
     if (nombre == null) return;
-    // El equipo local usa la voz propia; el rival una voz por defecto.
+    // El equipo local usa la voz propia; el rival, la voz de rival elegida.
     final idVoz = (equipoCanta == _miEquipo())
         ? AppSettings.instance.vozPropia
-        : Voces.disponibles.first.id;
+        : AppSettings.instance.vozRival;
     final voz = Voces.porId(idVoz);
     _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
   }
@@ -575,6 +575,37 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _quizaRespondeIA();
   }
 
+  // ¿La baza en curso ya está perdida para [equipoIA]? (la carta que gana es
+  // del rival y nadie de mi equipo puede superarla con lo que le queda por
+  // tirar en esta baza).
+  bool _bazaYaPerdida(int equipoIA) {
+    if (_baza.isEmpty) return false;
+    final yaJugaron = _baza.map((j) => j.asiento).toSet();
+    final cartasEquipo = <CardModel>[];
+    for (int a = 0; a < _manos.length; a++) {
+      if (_equipoDeAsiento(a) != equipoIA) continue;
+      if (yaJugaron.contains(a)) continue; // ya tiró en esta baza
+      cartasEquipo.addAll(_manos[a]);
+    }
+    return TrickEngine3v3.bazaPerdidaPara(
+      baza: _baza,
+      equipo: equipoIA,
+      cartasEquipo: cartasEquipo,
+      paloVirado: _paloVirado,
+      equipoDe: _equipoDeAsiento,
+    );
+  }
+
+  // La IA está en posición perdida: la baza en curso ya está perdida y, como
+  // el rival ya tiene al menos una baza, perder esta significa perder la mano.
+  // No tiene sentido cantar/subir de farol: la carta máxima ya se ve en la
+  // mesa del rival.
+  bool _iaEnPosicionPerdida(int equipoIA) {
+    if (!_bazaYaPerdida(equipoIA)) return false;
+    final bazasRival = equipoIA == 0 ? _manosEquipo1 : _manosEquipo0;
+    return bazasRival >= 1;
+  }
+
   // La IA del asiento considera proponer un envite antes de jugar.
   // Devuelve true si canto (en ese caso no juega carta todavia).
   bool _iaConsideraEnvite(int asiento) {
@@ -585,6 +616,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     if (_equipoTurnoApuesta != -1 && _equipoTurnoApuesta != equipo) {
       return false;
     }
+    // No cantar de farol si la posición ya está perdida.
+    if (_iaEnPosicionPerdida(equipo)) return false;
     int fuertes = 0;
     int muyFuertes = 0;
     if (asiento < _manos.length) {
@@ -652,7 +685,10 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     }
     final acepta = tieneTriunfo || valorProx <= 7;
     if (!acepta) return 'paso';
-    if (tieneTriunfo && _nivelPropuesto < 4 && _random33.nextDouble() < 0.25) {
+    if (tieneTriunfo &&
+        _nivelPropuesto < 4 &&
+        !_iaEnPosicionPerdida(equipo) &&
+        _random33.nextDouble() < 0.25) {
       return 'subir';
     }
     return 'juego';
@@ -679,12 +715,17 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       _equipoTurnoApuesta = aceptante;
       _mensaje = 'Envite aceptado. Seguid jugando.';
     } else if (accion == 'paso') {
-      // NO QUIERO = juega con lo que tenemos: se queda en el ultimo nivel
-      // aceptado (_nivelApuesta sin tocar) y la mano sigue. Se cobra al ganar.
+      // NO QUIERO: la mano se acaba de inmediato y se la lleva quien
+      // cantó/subió, cobrando el último nivel aceptado (el propuesto se
+      // rechaza, así que no cuenta).
+      final ganador = _equipoCanto;
       _enviteCantado = false;
       _equipoCanto = -1;
       _equipoTurnoApuesta = -1;
-      _mensaje = 'Juegan con lo apostado (${_nombreNivel(_nivelApuesta)}).';
+      _mensaje =
+          'No quieren (${_nombreNivel(_nivelApuesta)}): mano para el equipo que apostó.';
+      _cerrarManoPorNoQuiero(ganador);
+      return;
     } else if (accion == 'subir') {
       if (_nivelPropuesto < 4) {
         _nivelPropuesto += 1;
@@ -720,6 +761,33 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     _ganadorDialogoEquipo = gana0 ? 0 : 1;
     _piedrasSumadasDialogo = valorMano;
     _comprobarFinYMostrarDialogo();
+  }
+
+  // NO QUIERO: cierra la mano de inmediato adjudicándosela a [equipoGanador]
+  // (el que cantó/subió), cobrando el último nivel aceptado. Es como
+  // _finalizarRondaEquipos pero con ganador forzado (no por bazas). El envite
+  // no se puede cantar en tumbo, así que aquí nunca aplica el valor de tumbo.
+  void _cerrarManoPorNoQuiero(int equipoGanador) {
+    final valores = [2, 4, 7, 9, 12];
+    _reproducirEfecto('sonido_recoger_baraja.mp3');
+    // Rechazar el envite paga el valor del nivel ACEPTADO anteriormente
+    // (en nivel 0 = base son 2 piedras). NO se aplica la excepción del 1v1
+    // (donde el primer "no quiero" vale 1): el 1v1 es un modo resumido.
+    final valorMano = valores[_nivelApuesta];
+    if (equipoGanador == 0) {
+      _piedrasEquipo0 += valorMano;
+    } else {
+      _piedrasEquipo1 += valorMano;
+    }
+    _ganadorDialogoEquipo = equipoGanador;
+    _piedrasSumadasDialogo = valorMano;
+    _comprobarFinYMostrarDialogo();
+  }
+
+  String _nombreNivel(int nivel) {
+    const nombres = ['Base', 'Envido', 'Siete', 'Nueve', 'Chico fuera'];
+    if (nivel >= 0 && nivel < nombres.length) return nombres[nivel];
+    return '';
   }
 
   // Detección central: chico (12 piedras) y partida (2 chicos).
@@ -1065,6 +1133,7 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     Future.delayed(const Duration(milliseconds: retardoReparto), () {
       if (!mounted || _rondaTerminada) return;
       _iaCompanerasSenan();
+      _iaCompanerasSenanTumbo();
     });
     // La primera jugada espera a que se vean las senas (retardo + tiempo
     // de senas), para no arrancar la mano antes de mostrarlas.
@@ -1136,6 +1205,30 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     }
   }
 
+  // Durante el tumbo, si el equipo que decide tiene un humano, sus compañeros
+  // IA le envían las señas de sus cartas para que decida con información. Los
+  // compañeros humanos señan a mano con la rueda, como siempre.
+  void _iaCompanerasSenanTumbo() {
+    if (_enRed && !_soyAnfitrion) return; // solo el cerebro dispara
+    if (_equipoDecideTumbo == -1) return; // no hay decision de tumbo pendiente
+    final equipo = _equipoDecideTumbo;
+    if (!_equipoTieneHumano(equipo)) return; // equipo solo IA: decide sola
+    final pendientes = <MapEntry<int, String>>[];
+    for (int asiento = 0; asiento < _numJug; asiento++) {
+      if (!_esIA(asiento)) continue; // solo las IA
+      if (_equipoDeAsiento(asiento) != equipo) continue; // solo del equipo que decide
+      if (asiento >= _manos.length) continue;
+      for (final senaId in _senasDeMano(_manos[asiento])) {
+        pendientes.add(MapEntry(asiento, senaId));
+      }
+    }
+    if (pendientes.isEmpty) return;
+    _procesarSena(pendientes.first.key, 'silbido');
+    for (final e in pendientes) {
+      _procesarSena(e.key, e.value);
+    }
+  }
+
   bool _esIA(int asiento) {
     final cfg = widget.config;
     if (cfg == null) return asiento != 0;
@@ -1180,6 +1273,12 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       res.add('ciego');
     } else if (triunfos == 3) {
       res.add('flus');
+    }
+    // Dos triunfos menores se señan con "mordido", no con dos "menores".
+    final numMenores = res.where((id) => id == 'menores').length;
+    if (numMenores == 2) {
+      res.removeWhere((id) => id == 'menores');
+      res.add('mordido');
     }
     return res.where((id) {
       final s = senaPorId(id);
@@ -1461,7 +1560,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
         if (j.asiento == asiento) return j.equipo;
       }
     }
-    return asiento % 2;
+    // Fallback (config ausente/incompleta): mismo mapa zigzag que la sala,
+    // para que el equipo nunca salga mal. A={0,3,4,7}, B={1,2,5,6}.
+    return ((asiento ~/ 2) + (asiento % 2)) % 2;
   }
 
   CardModel? _cartaEnMesaDe(int asiento) {
@@ -1977,12 +2078,6 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   }
 
   // Nombre del nivel de apuesta propuesto.
-  String _nombreNivel(int nivel) {
-    const nombres = ['Base', 'Envido', 'Siete', 'Nueve', 'Chico fuera'];
-    if (nivel >= 0 && nivel < nombres.length) return nombres[nivel];
-    return '';
-  }
-
   Widget _botonesTumbo() {
     if (_equipoDecideTumbo == -1) return const SizedBox.shrink();
     final miEquipo = _miEquipo();

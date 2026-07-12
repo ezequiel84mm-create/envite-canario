@@ -6,9 +6,9 @@ import '../../domain/models/senas.dart';
 /// rueda radial alrededor. Al tocar un icono se envía esa seña.
 ///
 /// El orden de la rueda (empezando ARRIBA y girando a la derecha) es:
-/// full, tresbastos(nariz), caballo, perica, malilla, rey, menores, ciego,
-/// envido, silbido. Las señas que no aplican al modo se muestran como hueco
-/// vacío (invisibles) para no descolocar la rueda.
+/// full, tresbastos(nariz), caballo, perica, malilla, rey, mordido, menores,
+/// ciego, envido, silbido. Las señas que no aplican al modo se muestran como
+/// hueco vacío (invisibles) para no descolocar la rueda.
 class RuedaSenas extends StatefulWidget {
   final int numJugadores;              // 4=2v2, 6=3v3, 8=4v4
   final void Function(Sena sena) onEnviar;
@@ -36,6 +36,7 @@ class _RuedaSenasState extends State<RuedaSenas>
     'perica',
     'malilla',
     'rey',
+    'mordido',    // dos triunfos menores (morderse el labio)
     'menores',    // triunfos menores (chasquido)
     'ciego',
     'envido',

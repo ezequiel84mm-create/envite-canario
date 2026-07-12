@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:envite_canario/features/sala/domain/models/asiento.dart';
 import 'package:envite_canario/features/sala/domain/models/estado_sala.dart';
 import 'package:envite_canario/features/sala/domain/models/jugador_sala.dart';
 

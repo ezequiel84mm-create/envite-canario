@@ -10,6 +10,10 @@
 // NOTA: no incluye envites ni tumbo (dependen de la UI); cubre la lógica
 // central de reparto, jerarquía, validación, IA y conteo.
 
+// Script de diagnóstico por consola: el print y el toggle 'verbose' (apagado
+// por defecto, se pone a true para ver la traza) son intencionados.
+// ignore_for_file: avoid_print, dead_code
+
 import 'package:envite_canario/features/game/data/models/card_model.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/deal_engine_2v2.dart';
 import 'package:envite_canario/features/multiplayer/domain/engine/trick_engine_3v3.dart';
@@ -34,7 +38,7 @@ void anomalia(String msg) {
 }
 
 void main() {
-  const verbose = false; // pon true para ver jugada a jugada
+  bool verbose = false; // pon true para ver jugada a jugada
   int partidasInfinitas = 0;
   int ganaA = 0, ganaB = 0;
   final bazasPorAsiento = List<int>.filled(6, 0);
@@ -127,7 +131,11 @@ void main() {
     }
 
     totalManos += manosJugadas;
-    if (chicos0 >= 4) ganaA++; else ganaB++;
+    if (chicos0 >= 4) {
+      ganaA++;
+    } else {
+      ganaB++;
+    }
     if (verbose || partida < 3) {
       print('Partida $partida: chicos $chicos0-$chicos1 en $manosJugadas manos');
     }
