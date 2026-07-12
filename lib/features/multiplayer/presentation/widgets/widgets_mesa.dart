@@ -72,6 +72,10 @@ class AbanicoCartas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = cartas.length;
+    final f = MediaQuery.of(context).size.shortestSide >= 600 ? 1.25 : 1.0;
+    final anchoCarta = this.anchoCarta * f;
+    final altoCarta = this.altoCarta * f;
+    final solapamiento = this.solapamiento * f;
     if (n == 0) {
       return SizedBox(width: anchoCarta, height: altoCarta);
     }

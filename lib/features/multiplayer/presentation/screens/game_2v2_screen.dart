@@ -2096,10 +2096,11 @@ class _Abanico2v2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = cartas.length;
-    const anchoCarta = 85.0;
-    const altoCarta = 135.0;
-    const solapamiento = 52.0;
-    if (n == 0) return const SizedBox(width: anchoCarta, height: altoCarta);
+    final f = MediaQuery.of(context).size.shortestSide >= 600 ? 1.25 : 1.0;
+    final anchoCarta = 85.0 * f;
+    final altoCarta = 135.0 * f;
+    final solapamiento = 52.0 * f;
+    if (n == 0) return SizedBox(width: anchoCarta, height: altoCarta);
 
     final anchoTotal = anchoCarta + (n - 1) * solapamiento;
     const anguloMax = 6.0;

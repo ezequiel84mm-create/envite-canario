@@ -84,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Muestra el panel flotante con las dos opciones de juego.
   void _mostrarPanelJugar() {
+    final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
     showDialog(
       context: context,
       barrierColor: Colors.black54, // fondo atenuado
@@ -95,7 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: GestureDetector(
               onTap: () {}, // evita que tocar el panel lo cierre
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 50),
+                constraints:
+                    esTablet ? const BoxConstraints(maxWidth: 380) : null,
+                margin: esTablet
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.symmetric(horizontal: 50),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -235,10 +240,11 @@ class _BotonPanelImg extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        height: 56,
+        height: esTablet ? 72 : 56,
         width: double.infinity,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -258,17 +264,26 @@ class _ImageButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final habilitado = onTap != null;
+    // En tablet limitamos el ancho para que los botones no se estiren.
+    final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
     return Opacity(
       opacity: habilitado ? 1.0 : 0.45,
       child: GestureDetector(
         onTap: onTap,
-        child: SizedBox(
-          height: 53,
-          width: double.infinity,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(asset, fit: BoxFit.fill),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: esTablet ? 360 : double.infinity,
+            ),
+            child: SizedBox(
+              height: esTablet ? 70 : 53,
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(asset, fit: BoxFit.fill),
+              ),
+            ),
           ),
         ),
       ),

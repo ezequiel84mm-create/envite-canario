@@ -39,7 +39,7 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
 
   void _reproducirActual() {
     _player.stop();
-    _player.play(AssetSource('guia/guia${_indice + 1}.m4a'));
+    _player.play(AssetSource('guia/manologuiapag$_indice.mp3'));
   }
 
   void _avanzarEnSecuencia() {
@@ -53,6 +53,8 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
   }
 
   void _irAtras() {
+    _secuenciaTerminada = true; // navegación manual: corta la reproducción automática
+    _player.stop();
     if (_indice > 0) {
       setState(() => _indice--);
     } else {
@@ -62,14 +64,17 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
   }
 
   void _irAdelante() {
+    _secuenciaTerminada = true; // navegación manual: corta la reproducción automática
+    _player.stop();
     if (_indice < totalPaginas - 1) {
       setState(() => _indice++);
     }
   }
 
   void _reproducirManual() {
+    _secuenciaTerminada = true; // al reproducir a mano, ya no avanza sola
     _player.stop();
-    _player.play(AssetSource('guia/guia${_indice + 1}.m4a'));
+    _player.play(AssetSource('guia/manologuiapag$_indice.mp3'));
   }
 
   @override
@@ -115,9 +120,10 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Controles solo cuando termina la secuencia automática
-                    if (_secuenciaTerminada)
-                      Padding(
+                    // Controles siempre visibles: se puede navegar adelante y
+                    // atrás desde que se abre la guía, sin tener que escucharla
+                    // entera. La reproducción automática se corta al navegar.
+                    Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,

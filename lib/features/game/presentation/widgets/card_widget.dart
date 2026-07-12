@@ -18,10 +18,14 @@ class CardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En tablet las cartas se dibujan un 25% más grandes.
+    final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
+    final w = esTablet ? width * 1.25 : width;
+    final h = esTablet ? height * 1.25 : height;
     if (faceDown) {
       return Container(
-        width: width,
-        height: height,
+        width: w,
+        height: h,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.white24, width: 1.5),
@@ -35,8 +39,8 @@ class CardWidget extends StatelessWidget {
     }
 
     return Container(
-      width: width,
-      height: height,
+      width: w,
+      height: h,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.black26, width: 1.5),

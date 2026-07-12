@@ -38,6 +38,17 @@ class EnviteApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Envite Canario',
       theme: ThemeData.dark(),
+      builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
+        // En tablet agrandamos toda la tipografía un 20%.
+        final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
+        if (!esTablet) return child;
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: const TextScaler.linear(1.2)),
+          child: child,
+        );
+      },
       home: const HomeScreen(),
     );
   }
@@ -122,6 +133,10 @@ class _AbanicoCartas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = cartas.length;
+    final f = MediaQuery.of(context).size.shortestSide >= 600 ? 1.25 : 1.0;
+    final anchoCarta = this.anchoCarta * f;
+    final altoCarta = this.altoCarta * f;
+    final solapamiento = this.solapamiento * f;
     if (n == 0) {
       return SizedBox(width: anchoCarta, height: altoCarta);
     }
