@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.3.4+10
+- **Versión actual:** 1.3.6+12
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -22,7 +22,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 1v1, 2v2, 3v3, 4v4 (contra IA y multijugador por WiFi local).
 Baraja española de 40 cartas.
 
-## Últimos cambios (v1.3.4+10)
+## Cambios v1.3.4+10
 Dos bugs corregidos en los modos por equipos (2v2/3v3/4v4):
 1. **Bug de recogida:** al tocar una carta justo cuando se completaba la baza y se
    recogía, te quedabas sin carta. Solución: candado `_recogiendo` que bloquea jugar
@@ -32,7 +32,8 @@ Dos bugs corregidos en los modos por equipos (2v2/3v3/4v4):
    función `_quedaCompaneroPorTirar` que permite tiro libre si queda un compañero por
    jugar detrás. El 1v1 se revisó y NO lo necesitaba (no tiene equipos).
 
-## Cambios de esta sesión (posteriores a lo de arriba, sala/orientación)
+## Cambios v1.3.5 — sala, orientación y arreglos de juego
+Sala y orientación (formalizado en esta versión):
 - **Orden obligatorio de asientos en la sala** (`sala_screen.dart`): relleno contiguo
   en zigzag (0→1→2…), IA siempre al primer hueco, compactado automático al quitar
   IA/desconexión, ids de IA únicos. Evita que la mesa se rompa.
@@ -44,6 +45,27 @@ Dos bugs corregidos en los modos por equipos (2v2/3v3/4v4):
   `main.dart` + `Info.plist` (solo portrait) + `AndroidManifest.xml`
   (`screenOrientation="portrait"`). El layout se deformaba al girar el teléfono.
 - Limpieza de lints: `flutter analyze` en verde (de 50 avisos a 0).
+
+Arreglos de juego (modos por equipos / IA):
+- **Voz del rival según Opciones** en los modos por equipos (se respeta la voz elegida).
+- **La IA no canta ni sube de farol en posición perdida** (deja de tirarse faroles
+  absurdos cuando va a perder la baza).
+- **El "no quiero" termina la mano** a favor del que apostó, con el valor aceptado.
+- **Arrastre:** una fija que sale de primera obliga a arrastrar en 3v3 y 4v4
+  (`trick_engine_3v3.dart` / `trick_engine_4v4.dart`).
+- **En el tumbo, los compañeros IA envían sus señas antes de decidir.**
+
+Nueva seña:
+- **"Mordido" (🫦, morderse el labio inferior):** señal para *dos triunfos menores*.
+  Ya son 11 señas (5 de carta + 6 de situación) en `senas.dart` / `rueda_senas.dart`.
+
+## Cambios v1.3.6 — tablet y guía rápida
+- **Ajustes de tablet:** en tablet (lado corto ≥ 600 px) los botones del inicio no se
+  estiran y quedan más compactos, las cartas se dibujan un **25% más grandes** y la
+  tipografía se agranda un **20%** (vía `MediaQuery.textScaler` en `main.dart`).
+- **Guía rápida:** ahora permite navegar adelante y atrás desde que se abre, sin tener
+  que escucharla entera (`quick_guide_screen.dart`).
+- **Voces nuevas de Manolo** para la guía rápida (`assets/guia/manologuiapag0..6.mp3`).
 
 ## Otras funciones que ya tiene la app
 Selector de baraja Española/Canaria en Opciones · botón "Primeros Pasos" con pergamino
