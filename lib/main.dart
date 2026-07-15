@@ -2,6 +2,7 @@ import 'dart:math';
 import 'core/settings/voces.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'core/settings/mazo_assets.dart';
 import 'features/home/presentation/screens/home_screen.dart';
@@ -39,17 +40,60 @@ class EnviteApp extends StatelessWidget {
       title: 'Envite Canario',
       theme: ThemeData.dark(),
       builder: (context, child) {
-        if (child == null) return const SizedBox.shrink();
+        final Widget app = child ?? const SizedBox.shrink();
+
+        // Solo en escritorio Windows: enmarcamos la app con forma de móvil
+        // (columna estrecha y alta centrada, con los lados en negro) y le
+        // hacemos creer que está en una pantalla de móvil para que el layout
+        // se coloque bien. NO afecta a Android, iPhone ni Mac.
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+          return _MarcoMovil(child: app);
+        }
+
         // En tablet agrandamos toda la tipografía un 20%.
         final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
-        if (!esTablet) return child;
+        if (!esTablet) return app;
         final mq = MediaQuery.of(context);
         return MediaQuery(
           data: mq.copyWith(textScaler: const TextScaler.linear(1.2)),
-          child: child,
+          child: app,
         );
       },
       home: const HomeScreen(),
+    );
+  }
+}
+
+/// Enmarca la app con proporción de móvil en escritorio Windows.
+/// Centra el contenido en una columna tipo teléfono (lados en negro) y ajusta
+/// el MediaQuery para que las pantallas se dibujen como en un móvil, en vez de
+/// estirarse por toda la ventana. Solo se usa en Windows.
+class _MarcoMovil extends StatelessWidget {
+  final Widget child;
+  const _MarcoMovil({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    // Lienzo lógico de un móvil típico. La app se dibuja SIEMPRE a este tamaño
+    // (donde ya sabemos que encaja bien, igual que en Android/iPhone) y luego
+    // se escala para caber en la ventana, así no hay desbordes.
+    const movil = Size(412, 915);
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: movil.width,
+            height: movil.height,
+            child: MediaQuery(
+              data: mq.copyWith(size: movil),
+              child: child,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
