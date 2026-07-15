@@ -469,6 +469,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void _jugarCartaTu(CardModel carta) {
     if (_resolviendoBaza) return; // baza en proceso: ignora toques
+    if (bazaActual.length == 1 && bazaActual.first.playerId == 'tu') {
+      return; // ya jugaste tu carta y esperas a que responda la IA
+    }
     if (envitePropuestoPorIA) return;
     if (quienSaca != 'tu' && bazaActual.isEmpty) return;
     if (bazaActual.length >= 2) return; // ya hay dos cartas en mesa
@@ -580,6 +583,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     final valorMano = manoEsDeTumbo ? 3 : apuesta.valorActual;
     final huboChico = score.sumarPiedras(ganadorId, valorMano);
     final ganadorPartida = score.ganadorPartida;
+
+    if (ganadorPartida != null) {
+      // Sonido de fin de partida: victoria o derrota (faltaba en este camino).
+      _reproducirSonido(
+          ganadorPartida == 'tu' ? 'chacaras.mp3' : 'se_me_fue_el_baifo.mp3');
+    }
 
     showDialog(
       context: context,
