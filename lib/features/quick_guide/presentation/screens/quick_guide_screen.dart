@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../core/settings/music_controller.dart';
+import '../../../../core/settings/app_settings.dart';
 
 class QuickGuideScreen extends StatefulWidget {
   const QuickGuideScreen({super.key});
@@ -39,6 +40,7 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
 
   void _reproducirActual() {
     _player.stop();
+    if (AppSettings.audioBloqueadoEnPlataforma) return; // audio off en Windows
     _player.play(AssetSource('guia/manologuiapag$_indice.mp3'));
   }
 
@@ -74,6 +76,7 @@ class _QuickGuideScreenState extends State<QuickGuideScreen> {
   void _reproducirManual() {
     _secuenciaTerminada = true; // al reproducir a mano, ya no avanza sola
     _player.stop();
+    if (AppSettings.audioBloqueadoEnPlataforma) return; // audio off en Windows
     _player.play(AssetSource('guia/manologuiapag$_indice.mp3'));
   }
 

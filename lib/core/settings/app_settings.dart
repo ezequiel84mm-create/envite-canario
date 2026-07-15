@@ -20,8 +20,15 @@ class AppSettings extends ChangeNotifier {
   String _baraja = 'espanola'; // 'espanola' o 'canaria'
   String _alias = ''; // se rellena al cargar
 
-  bool get musicaActivada => _musicaActivada;
-  bool get efectosActivados => _efectosActivados;
+  /// En Windows el plugin de audio (audioplayers) tiene un bug de hilos que
+  /// puede cerrar la app, así que desactivamos TODO el audio solo en Windows.
+  /// En Android, iPhone, Mac y web el sonido funciona con normalidad.
+  static bool get audioBloqueadoEnPlataforma =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  bool get musicaActivada => !audioBloqueadoEnPlataforma && _musicaActivada;
+  bool get efectosActivados =>
+      !audioBloqueadoEnPlataforma && _efectosActivados;
   int get dificultadIA => _dificultadIA;
   String get vozPropia => _vozPropia;
   String get vozRival => _vozRival;
