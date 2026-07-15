@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "785455981664",
+    "project_id": "envite-canario",
+    "storage_bucket": "envite-canario.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:785455981664:android:e80567ecf8128c5ea2cf05",
+        "android_client_info": {
+          "package_name": "com.example.envite_canario"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrGfLq4DgIhY2CL0R2a-yMznfAHrWQbEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -4,6 +4,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'core/settings/mazo_assets.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'core/settings/app_settings.dart';
@@ -27,6 +29,14 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   await AppSettings.instance.cargar();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase no se pudo inicializar: $e');
+  }
+
   runApp(const EnviteApp());
 }
 
