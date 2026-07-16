@@ -141,6 +141,81 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  // Panel flotante para elegir modo multijugador: WiFi u Online.
+  void _mostrarPanelMultijugador() {
+    final esTablet = MediaQuery.of(context).size.shortestSide >= 600;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (_) => GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Material(
+          color: Colors.transparent,
+          child: Center(
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                constraints:
+                    esTablet ? const BoxConstraints(maxWidth: 380) : null,
+                margin: esTablet
+                    ? EdgeInsets.zero
+                    : const EdgeInsets.symmetric(horizontal: 50),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFE8D4A8), Color(0xFFDCC290)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF8A6A35), width: 2),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'ELIGE MODO',
+                      style: TextStyle(
+                        fontFamily: 'Georgia',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF9A3A0A),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    _BotonPanelImg(
+                      asset: 'assets/ui/boton_wifi.png',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SalaLobbyScreen()),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _BotonPanelImg(
+                      asset: 'assets/ui/boton_online.png',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const OnlineLobbyScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -187,23 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 14),
                   _ImageButton(
                     asset: 'assets/ui/boton_multijugador.jpg',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SalaLobbyScreen()),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 14),
-                  _ImageButton(
-                    asset: 'assets/ui/boton_online.png',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const OnlineLobbyScreen()),
-                      );
-                    },
+                    onTap: _mostrarPanelMultijugador,
                   ),
 
                   const SizedBox(height: 14),

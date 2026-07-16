@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../sala/network/transporte_sala.dart';
 
@@ -23,7 +24,11 @@ import '../sala/network/transporte_sala.dart';
 class ConexionSalaOnline implements TransporteSala {
   static const int maxInvitados = 7;
 
-  final FirebaseDatabase _db = FirebaseDatabase.instance;
+  final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL:
+        'https://envite-canario-default-rtdb.europe-west1.firebasedatabase.app',
+  );
 
   String? _codigo;
   String? _miIdInvitado;
