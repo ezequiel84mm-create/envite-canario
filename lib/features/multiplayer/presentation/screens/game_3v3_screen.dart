@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../../core/settings/mazo_assets.dart';
 import '../../../sala/domain/models/config_partida.dart';
-import '../../../sala/network/conexion_sala.dart';
+import '../../../sala/network/transporte_sala.dart';
 import '../../../sala/network/mensajes_sala.dart';
 import '../../network/mensajes_red.dart';
 import '../../network/traductor_cartas.dart';
@@ -29,7 +29,7 @@ import '../../domain/models/senas.dart';
 /// Equipo A (tú): 0 y 2. Equipo B (rivales): 1 y 3.
 class Game3v3Screen extends StatefulWidget {
   final ConfigPartida? config; // null = modo local de prueba (2v2 con IA)
-  final ConexionSala? conexion; // null = modo local; viva = partida en red
+  final TransporteSala? conexion; // null = modo local; viva = partida en red
   const Game3v3Screen({super.key, this.config, this.conexion});
 
   @override

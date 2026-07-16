@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'transporte_sala.dart';
 
 /// Servicio de red para el modo SALA (varios jugadores en la misma wifi).
 ///
 /// El ANFITRIÓN abre un servidor y acepta VARIOS invitados a la vez
 /// (hasta el máximo que decidamos). Mantiene una lista de conexiones.
 /// Cada INVITADO se conecta al anfitrión con un solo socket.
-class ConexionSala {
+class ConexionSala implements TransporteSala {
   static const int puerto = 4568; // distinto al del 1v1 (4567)
   static const int maxInvitados = 7; // 8 jugadores - 1 anfitrión
 
@@ -18,19 +19,29 @@ class ConexionSala {
 
   Socket? _socketHaciaAnfitrion;
 
+  @override
   bool soyAnfitrion = false;
 
+  @override
   void Function(String idInvitado, String mensaje)? alRecibirDeInvitado;
+  @override
   void Function(String mensaje)? alRecibirDeAnfitrion;
+  @override
   void Function(String idInvitado)? alConectarInvitado;
+  @override
   void Function(String idInvitado)? alDesconectarInvitado;
+  @override
   void Function()? alConectarConAnfitrion;
+  @override
   void Function()? alPerderAnfitrion;
 
+  @override
   int get numInvitados => _invitados.length;
+  @override
   List<String> get idsInvitados => _invitados.keys.toList();
 
   // ===== ANFITRIÓN: abrir la sala =====
+  @override
   Future<String?> crearSala() async {
     try {
       soyAnfitrion = true;
@@ -84,6 +95,7 @@ class ConexionSala {
     );
   }
 
+  @override
   void enviarATodos(String mensaje) {
     for (final socket in _invitados.values) {
       try {
@@ -92,6 +104,7 @@ class ConexionSala {
     }
   }
 
+  @override
   void enviarA(String idInvitado, String mensaje) {
     final socket = _invitados[idInvitado];
     if (socket == null) return;
@@ -101,6 +114,7 @@ class ConexionSala {
   }
 
   // ===== INVITADO: unirse a la sala =====
+  @override
   Future<bool> unirseASala(String direccionAnfitrion) async {
     try {
       soyAnfitrion = false;
@@ -139,6 +153,7 @@ class ConexionSala {
     );
   }
 
+  @override
   void enviarAlAnfitrion(String mensaje) {
     if (_socketHaciaAnfitrion == null) return;
     try {
@@ -199,6 +214,7 @@ class ConexionSala {
     return null;
   }
 
+  @override
   void cerrar() {
     // Copia con toList(): al destruir un socket se dispara su onDone, que
     // hace _invitados.remove(...). Si iteraramos sobre _invitados.values
