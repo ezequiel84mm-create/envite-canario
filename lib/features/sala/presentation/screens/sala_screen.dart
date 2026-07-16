@@ -5,6 +5,8 @@ import '../../domain/models/config_partida.dart';
 import '../../domain/models/asiento.dart';
 import '../../domain/models/jugador_sala.dart';
 import '../../network/conexion_sala.dart';
+import '../../network/transporte_sala.dart';
+import '../../../online/conexion_sala_online.dart';
 import '../../network/mensajes_sala.dart';
 import '../../../multiplayer/network/mensajes_red.dart';
 import '../../../../core/settings/app_settings.dart';
@@ -17,7 +19,8 @@ import '../../../multiplayer/presentation/screens/game_4v4_screen.dart';
 class SalaScreen extends StatefulWidget {
   final bool soyAnfitrion;
   final String? ipAnfitrion; // solo para invitado: IP a la que conectarse
-  const SalaScreen({super.key, this.soyAnfitrion = true, this.ipAnfitrion});
+  final bool online; // true = internet (Firebase); false = wifi
+  const SalaScreen({super.key, this.soyAnfitrion = true, this.ipAnfitrion, this.online = false});
 
   @override
   State<SalaScreen> createState() => _SalaScreenState();
@@ -25,7 +28,7 @@ class SalaScreen extends StatefulWidget {
 
 class _SalaScreenState extends State<SalaScreen> {
   late EstadoSala _sala;
-  final ConexionSala _conexion = ConexionSala();
+  late final TransporteSala _conexion = widget.online ? ConexionSalaOnline() : ConexionSala();
   String? _ip; // IP del anfitrión (para el QR)
   String _miIdInvitado = ''; // solo invitado: su id asignado por el anfitrión
   bool _yendoAlJuego = false; // si true, el dispose NO cierra la conexión
@@ -670,8 +673,8 @@ class _SalaScreenState extends State<SalaScreen> {
                   ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Escanea para unirte',
+          Text(
+            widget.online ? 'Comparte este codigo' : 'Escanea para unirte',
             style: TextStyle(
               color: Color(0xFF3A2B12),
               fontSize: 12,

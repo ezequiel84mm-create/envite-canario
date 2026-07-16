@@ -1,43 +1,41 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../sala/network/transporte_sala.dart';
 
 /// Transporte del modo SALA por INTERNET (Firebase Realtime Database).
 ///
-/// Tiene la MISMA interfaz que `ConexionSala` (la del WiFi), para que las
-/// pantallas de sala y de partida la usen exactamente igual. Lo único que
-/// cambia es "cómo viajan" los mensajes: en vez de sockets por la wifi,
-/// van por la Realtime Database de Firebase (funciona por internet).
+/// Misma interfaz que `ConexionSala` (la del WiFi). Cambia solo el transporte:
+/// en vez de sockets, los mensajes viajan por la Realtime Database.
 ///
-/// Modelo de datos en la base de datos:
-///   salas/{codigo}/
+/// NOTA: no usamos Firebase Auth (login) porque en Windows su plugin tiene un
+/// bug de hilos que cierra la app, y la base de datos esta en modo prueba
+/// (acceso abierto). En su lugar generamos un id aleatorio por dispositivo.
+/// Cuando pongamos reglas de seguridad (Fase 4) volveremos a meter el login,
+/// probandolo ya en el movil (donde funciona bien).
+///
+/// Modelo de datos:
+///   salas/(codigo)/
 ///     anfitrion: (uid)                       -> presencia del anfitrion
-///     creada: (timestamp)
 ///     invitados/(idInv): { uid }             -> un hijo por invitado
-///                                               (onDisconnect lo borra solo)
 ///     aInvitado/(idInv)/(push): (mensaje)    -> anfitrion  -> ese invitado
-///     alAnfitrion/{push}: { de, msg }        -> invitado   -> anfitrión
-///
-/// El "código" que devuelve crearSala() es lo que el anfitrión comparte con
-/// los demás para que se unan (el equivalente a la IP del WiFi).
+///     alAnfitrion/(push): { de, msg }        -> invitado   -> anfitrion
 class ConexionSalaOnline implements TransporteSala {
-  static const int maxInvitados = 7; // 8 jugadores - 1 anfitrión
+  static const int maxInvitados = 7;
 
   final FirebaseDatabase _db = FirebaseDatabase.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String? _codigo;
-  String? _miIdInvitado; // solo invitado: su id dentro de la sala
+  String? _miIdInvitado;
   @override
   bool soyAnfitrion = false;
 
-  // Solo el anfitrión: invitados presentes (id -> true).
+  // Id propio aleatorio (sustituye al uid del login, que no usamos en Windows).
+  late final String _miUid = _generarUid();
+
   final Map<String, bool> _invitados = {};
   final List<StreamSubscription<DatabaseEvent>> _subs = [];
 
-  // ===== Mismos callbacks que ConexionSala =====
   @override
   void Function(String idInvitado, String mensaje)? alRecibirDeInvitado;
   @override
@@ -58,28 +56,25 @@ class ConexionSalaOnline implements TransporteSala {
 
   DatabaseReference get _sala => _db.ref('salas/$_codigo');
 
-  Future<void> _login() async {
-    if (_auth.currentUser == null) {
-      await _auth.signInAnonymously();
-    }
+  String _generarUid() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final r = Random();
+    return 'u_${List.generate(16, (_) => chars[r.nextInt(chars.length)]).join()}';
   }
 
-  // Código de 4 letras/números, sin caracteres confusos (O/0, I/1).
+  // Codigo de 4 letras/numeros, sin caracteres confusos (O/0, I/1).
   String _generarCodigo() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final r = Random();
     return List.generate(4, (_) => chars[r.nextInt(chars.length)]).join();
   }
 
-  // ===== ANFITRIÓN: abrir la sala =====
+  // ===== ANFITRION =====
   @override
   Future<String?> crearSala() async {
     try {
-      await _login();
       soyAnfitrion = true;
-      final uid = _auth.currentUser!.uid;
 
-      // Busca un código libre.
       String codigo = _generarCodigo();
       for (int i = 0; i < 5; i++) {
         final existe = (await _db.ref('salas/$codigo').get()).exists;
@@ -89,13 +84,11 @@ class ConexionSalaOnline implements TransporteSala {
       _codigo = codigo;
 
       await _sala.set({
-        'anfitrion': uid,
+        'anfitrion': _miUid,
         'creada': ServerValue.timestamp,
       });
-      // Si el anfitrión se cae/cierra, se borra la sala entera.
       _sala.onDisconnect().remove();
 
-      // Invitados que entran/salen.
       _subs.add(_sala.child('invitados').onChildAdded.listen((e) {
         final id = e.snapshot.key;
         if (id == null || _invitados.containsKey(id)) return;
@@ -108,8 +101,6 @@ class ConexionSalaOnline implements TransporteSala {
         _invitados.remove(id);
         alDesconectarInvitado?.call(id);
       }));
-
-      // Mensajes de los invitados (cola global).
       _subs.add(_sala.child('alAnfitrion').onChildAdded.listen((e) {
         final v = e.snapshot.value;
         if (v is Map) {
@@ -117,7 +108,7 @@ class ConexionSalaOnline implements TransporteSala {
           final msg = v['msg']?.toString() ?? '';
           if (msg.isNotEmpty) alRecibirDeInvitado?.call(de, msg);
         }
-        e.snapshot.ref.remove(); // consumido
+        e.snapshot.ref.remove();
       }));
 
       return codigo;
@@ -139,33 +130,28 @@ class ConexionSalaOnline implements TransporteSala {
     _sala.child('aInvitado/$idInvitado').push().set(mensaje);
   }
 
-  // ===== INVITADO: unirse a la sala =====
+  // ===== INVITADO =====
   @override
   Future<bool> unirseASala(String codigo) async {
     try {
-      await _login();
       soyAnfitrion = false;
       _codigo = codigo.trim().toUpperCase();
 
       final snap = await _sala.get();
-      if (!snap.exists) return false; // no existe ninguna sala con ese código
+      if (!snap.exists) return false;
 
-      final uid = _auth.currentUser!.uid;
       final ref = _sala.child('invitados').push();
       _miIdInvitado = ref.key;
-      await ref.set({'uid': uid});
-      // Si me caigo/cierro, el anfitrión ve que me fui.
+      await ref.set({'uid': _miUid});
       ref.onDisconnect().remove();
 
-      // Mensajes que el anfitrión me manda a mí.
       _subs.add(
           _sala.child('aInvitado/$_miIdInvitado').onChildAdded.listen((e) {
         final msg = e.snapshot.value?.toString() ?? '';
         if (msg.isNotEmpty) alRecibirDeAnfitrion?.call(msg);
-        e.snapshot.ref.remove(); // consumido
+        e.snapshot.ref.remove();
       }));
 
-      // Si desaparece el anfitrión (se borra la sala), aviso.
       _subs.add(_sala.child('anfitrion').onValue.listen((e) {
         if (!e.snapshot.exists) alPerderAnfitrion?.call();
       }));
@@ -186,7 +172,7 @@ class ConexionSalaOnline implements TransporteSala {
         .set({'de': _miIdInvitado, 'msg': mensaje});
   }
 
-  // ===== Común =====
+  // ===== Comun =====
   @override
   void cerrar() {
     for (final s in _subs) {
@@ -195,7 +181,7 @@ class ConexionSalaOnline implements TransporteSala {
     _subs.clear();
     try {
       if (soyAnfitrion && _codigo != null) {
-        _sala.remove(); // el anfitrión cierra: borra la sala
+        _sala.remove();
       } else if (_codigo != null && _miIdInvitado != null) {
         _sala.child('invitados/$_miIdInvitado').remove();
       }

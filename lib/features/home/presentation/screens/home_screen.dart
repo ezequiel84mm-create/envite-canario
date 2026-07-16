@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../sala/presentation/screens/sala_lobby_screen.dart';
+import '../../../online/online_lobby_screen.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../game/presentation/screens/game_screen_wrapper.dart';
 import '../../../how_to_play/presentation/screens/how_to_play_screen.dart';
@@ -190,6 +191,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const SalaLobbyScreen()),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+                  _ImageButton(
+                    asset: 'assets/ui/boton_online.png',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const OnlineLobbyScreen()),
                       );
                     },
                   ),
