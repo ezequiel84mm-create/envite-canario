@@ -565,6 +565,8 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
 
   void _invitadoRecibeEstado(Map<String, dynamic> d) {
     final anteriorDialogo = _pendienteDialogo;
+    final antesEnvite = _enviteCantado;
+    final antesNivelEnvite = _nivelPropuesto;
     // Detectar un reparto nuevo para lanzar animacion + sonido en el invitado.
     // Se detecta por TRANSICION: antes habia mano en curso (cartas en mesa,
     // bazas ganadas o ronda terminada) y ahora llega un estado limpio (baza
@@ -626,6 +628,11 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
       _numCartasPorAsiento =
           ((d['numCartas'] as List?) ?? []).map((e) => e as int).toList();
     });
+    final hayCantoNuevo = _enviteCantado &&
+        (!antesEnvite || _nivelPropuesto > antesNivelEnvite);
+    if (hayCantoNuevo) {
+      _sonidoApuesta(_nivelPropuesto, equipoCanta: _equipoCanto);
+    }
     if (_pendienteDialogo != 'ninguno' && anteriorDialogo == 'ninguno') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mostrarDialogoFinEquipos();

@@ -94,3 +94,9 @@ selector de dificultad de IA · sistema de señas.
   (99 €/año) aparcado hasta ver tracción.
 - **Multijugador online (Firebase):** el salto grande. Empezar por Firebase + login
   anónimo + salas por código; probar en 1v1 antes que en los modos por equipos.
+
+
+## Ideas pendientes (online)
+- El QR no sirve en online (los dispositivos no estan cerca): sustituirlo por algo util o quitarlo.
+- Hacer el codigo de sala pulsable: opcion de copiar y de compartir por WhatsApp u otra mensajeria.
+- Sonido del envite en el invitado: RESUELTO.
