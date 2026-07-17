@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.6.1+16
+- **Versión actual:** 1.6.2+17
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -121,6 +121,17 @@ Tecnico:
 
 Pendiente:
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.2 (julio 2026)
+
+Arreglo de voces en el 1v1 online:
+- Sintoma: en 1v1 online solo sonaba la voz propia (Zeky) y nunca la del rival
+  (Manolo); se "arreglaba" al cambiar un valor de voz.
+- Causa: el 1v1 usaba las voces sincronizadas por red (la vozPropia del otro), que
+  por defecto coincidian (zeky). El ajuste vozRival ni se usaba.
+- Solucion: alinearlo con los modos por equipos: cada dispositivo usa su vozPropia
+  para lo suyo y su vozRival para el rival (juego_red_1v1_screen.dart, _sonidoApuesta).
 
 
 ## Novedades v1.6.1 (julio 2026)

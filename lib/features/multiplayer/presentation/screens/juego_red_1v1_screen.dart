@@ -100,8 +100,13 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
     };
     final nombre = nombres[nivel];
     if (nombre == null) return;
-    // Usa la voz del asiento que canta (0=anfitrion, 1=invitado).
-    final idVoz = asientoCanta == 0 ? _vozAsiento0 : _vozAsiento1;
+    // La voz local canta con vozPropia; el rival, con la vozRival elegida en
+    // Opciones (igual que en los modos por equipos). Antes usaba la voz
+    // sincronizada del otro, que por defecto coincidia (zeky) y Manolo no sonaba.
+    final miAsiento = widget.soyAnfitrion ? 0 : 1;
+    final idVoz = (asientoCanta == miAsiento)
+        ? AppSettings.instance.vozPropia
+        : AppSettings.instance.vozRival;
     final voz = Voces.porId(idVoz);
     _sfxPlayer.play(AssetSource('audio/${voz.rutaNivel(nombre)}'));
   }

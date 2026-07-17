@@ -1,6 +1,6 @@
 # Contexto de desarrollo (handoff)
 
-Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.6.1+16.
+Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.6.2+17.
 
 ## Como ponerse al dia
 Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
@@ -48,6 +48,4 @@ el invitado la OBSERVA con onValue + un get puntual en el bucle de espera
 - Reconexion online: hecho el cimiento (R1: id estable con el uid del login).
   Faltan R2 (silla reservada + reconexion por wifi) y R3 (volver a la partida al
   reabrir la app).
-- Bug 1v1 online: solo suena la voz Zeky, nunca Manolo; se arregla al tocar algun
-  valor de voz. Pendiente de mirar.
 - Probar reconexiones reales en partida online.
