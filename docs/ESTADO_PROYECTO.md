@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.3.6+12
+- **Versión actual:** 1.6.0+15
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -120,5 +120,23 @@ Tecnico:
 - Dependencia share_plus ^13.2.1. iOS minimo 15.0.
 
 Pendiente:
-- Reglas de seguridad de Firebase (Fase 4) + reintroducir login en movil.
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.0 (julio 2026)
+
+Seguridad (Fase 4 — cerrada):
+- **Login anonimo** con firebase_auth (^6.5.6): al arrancar la app se hace
+  `signInAnonymously()` (en `main.dart`), omitido en Windows por su bug de hilos.
+  Requiere tener habilitado el proveedor "Anonimo" en Authentication (consola).
+- **Reglas de seguridad** en la Realtime Database: `.read`/`.write` = `auth != null`.
+  Se acabo el modo prueba abierto: solo entra quien pasa por la app (logueado).
+- El login no cambia la logica del online: el uid del dato sigue siendo un id
+  aleatorio por dispositivo; el login solo sirve para cumplir las reglas.
+
+Arreglo online:
+- **El invitado a veces se quedaba sin cartas al empezar** (cualquier modo/aparato).
+  Su peticion "dame mi mano" (`pedirEstado`) podia cruzarse con el cambio de pantalla
+  del anfitrion y perderse, sin reintento. Solucion: el invitado reintenta la peticion
+  hasta 6 veces (cada 700 ms) y para en cuanto llega la mano. Aplicado en
+  `game_2v2/3v3/4v4_screen.dart` (metodo `_pedirEstadoConReintentos`).

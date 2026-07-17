@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'core/settings/mazo_assets.dart';
 import 'features/home/presentation/screens/home_screen.dart';
@@ -33,6 +34,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // Login anonimo: las reglas de seguridad de la RTDB exigen auth != null.
+    // En Windows el plugin de firebase_auth crashea ("non-platform thread"),
+    // asi que se omite; alli el online no se usa de todos modos.
+    if (defaultTargetPlatform != TargetPlatform.windows) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+    }
   } catch (e) {
     debugPrint('Firebase no se pudo inicializar: $e');
   }

@@ -1,6 +1,6 @@
 # Contexto de desarrollo (handoff)
 
-Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.5.0+14.
+Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.6.0+15.
 
 ## Como ponerse al dia
 Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
@@ -21,11 +21,11 @@ Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
 - Convencion de nombre del APK al Escritorio: ENVITEv<version>.apk  (ej. ENVITEv1.5.apk)
 
 ## Firebase (online)
-- Realtime Database, proyecto envite-canario, region europe-west1, modo prueba (reglas abiertas).
+- Realtime Database, proyecto envite-canario, region europe-west1. Fase 4 hecha (v1.6.0): reglas de seguridad activas (`.read`/`.write` = `auth != null`), ya NO en modo prueba abierto.
 - IMPORTANTE: hay que pasar la URL de la RTDB explicitamente:
   FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL:
   'https://envite-canario-default-rtdb.europe-west1.firebasedatabase.app')
-- De momento SIN firebase_auth (se usa un uid aleatorio por dispositivo).
+- firebase_auth (^6.5.6): login ANONIMO al arrancar (main.dart, signInAnonymously), omitido en Windows por el bug de hilos. Hay que tener habilitado el proveedor "Anonimo" en la consola (Authentication). El uid del dato sigue siendo un id aleatorio por dispositivo; el login solo sirve para pasar las reglas (auth != null).
 
 ## Arquitectura del multijugador (aditiva, no rompe lo anterior)
 - Interfaz comun TransporteSala. La implementan ConexionSala (WiFi por sockets) y ConexionSalaOnline (Firebase).
@@ -38,5 +38,4 @@ Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
 - Editar en la Mac: si el puente llega, directo; si no, con scripts python heredoc y anclajes precisos.
 
 ## Pendiente
-- Reglas de seguridad de Firebase (Fase 4) + reintroducir login en movil.
 - Probar reconexiones en partida online.

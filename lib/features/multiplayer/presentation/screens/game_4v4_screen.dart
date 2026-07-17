@@ -133,14 +133,26 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
       if (_soyAnfitrion) {
         _repartirNuevaRonda();
       } else {
-        widget.conexion!.enviarAlAnfitrion(
-          MensajeRed(TipoMensajeSala.jugarCarta, {'pedirEstado': true})
-              .codificar());
+        _pedirEstadoConReintentos();
         _mensaje = 'Esperando reparto...';
       }
     } else {
       _repartirNuevaRonda();
     }
+  }
+
+  // El invitado pide su mano al anfitrion al entrar. Ese mensaje puede cruzarse
+  // con el cambio de pantalla del anfitrion (que en ese instante aun no escucha
+  // mensajes de juego) y perderse; entonces el invitado se quedaba sin cartas.
+  // Se reintenta unas cuantas veces y se para en cuanto llega la mano.
+  void _pedirEstadoConReintentos([int intento = 0]) {
+    if (!mounted || intento >= 6) return;
+    if (_miManoRed.isNotEmpty) return;
+    widget.conexion!.enviarAlAnfitrion(
+        MensajeRed(TipoMensajeSala.jugarCarta, {'pedirEstado': true})
+            .codificar());
+    Future.delayed(const Duration(milliseconds: 700),
+        () => _pedirEstadoConReintentos(intento + 1));
   }
 
   void _configurarRed() {
