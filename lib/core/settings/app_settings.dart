@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'music_controller.dart';
 
 /// Ajustes globales de la app. Un único objeto compartido (singleton)
 /// que cualquier pantalla puede leer y modificar.
@@ -14,6 +15,7 @@ class AppSettings extends ChangeNotifier {
 
   bool _musicaActivada = true;
   bool _efectosActivados = true;
+  double _volumen = 1.0;
   int _dificultadIA = 1; // 0 = Fácil, 1 = Normal, 2 = Difícil
   String _vozPropia = 'zeky';
   String _vozRival = 'manolo';
@@ -29,6 +31,7 @@ class AppSettings extends ChangeNotifier {
   bool get musicaActivada => !audioBloqueadoEnPlataforma && _musicaActivada;
   bool get efectosActivados =>
       !audioBloqueadoEnPlataforma && _efectosActivados;
+  double get volumen => _volumen;
   int get dificultadIA => _dificultadIA;
   String get vozPropia => _vozPropia;
   String get vozRival => _vozRival;
@@ -53,6 +56,8 @@ class AppSettings extends ChangeNotifier {
     final p = _prefs!;
     _musicaActivada = p.getBool('musica') ?? true;
     _efectosActivados = p.getBool('efectos') ?? true;
+    _volumen = p.getDouble('volumen') ?? 1.0;
+    MusicController.instance.setVolumen(_volumen);
     _dificultadIA = p.getInt('dificultad') ?? 1;
     _vozPropia = p.getString('vozPropia') ?? 'zeky';
     _vozRival = p.getString('vozRival') ?? 'manolo';
@@ -78,6 +83,13 @@ class AppSettings extends ChangeNotifier {
   void setEfectos(bool valor) {
     _efectosActivados = valor;
     _prefs?.setBool('efectos', valor);
+    notifyListeners();
+  }
+
+  void setVolumen(double valor) {
+    _volumen = valor.clamp(0.0, 1.0).toDouble();
+    _prefs?.setDouble('volumen', _volumen);
+    MusicController.instance.setVolumen(_volumen);
     notifyListeners();
   }
 

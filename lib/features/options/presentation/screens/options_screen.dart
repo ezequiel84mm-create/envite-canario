@@ -86,6 +86,11 @@ class _OptionsScreenState extends State<OptionsScreen> {
                         onCambio: (v) => setState(() => settings.setMusica(v)),
                       ),
                       const SizedBox(height: 14),
+                      _PanelVolumen(
+                        valor: settings.volumen,
+                        onCambio: (v) => setState(() => settings.setVolumen(v)),
+                      ),
+                      const SizedBox(height: 14),
                       _PanelToggle(
                         icono: Icons.volume_up,
                         titulo: 'Efectos de sonido',
@@ -798,6 +803,62 @@ class _PanelAliasState extends State<_PanelAlias> {
               ),
             ),
             onChanged: widget.onCambio,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _PanelVolumen extends StatelessWidget {
+  final double valor;
+  final ValueChanged<double> onCambio;
+  const _PanelVolumen({required this.valor, required this.onCambio});
+  @override
+  Widget build(BuildContext context) {
+    final pct = (valor * 100).round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xCC2A1A0A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x66E3C28A), width: 1),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.graphic_eq, color: Color(0xFFE3C28A), size: 22),
+          const SizedBox(width: 12),
+          const Text(
+            'Volumen',
+            style: TextStyle(color: Color(0xFFF5E6C8), fontSize: 16),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: const Color(0xFFEFAF1F),
+                inactiveTrackColor: const Color(0x55E3C28A),
+                thumbColor: const Color(0xFFEFAF1F),
+                overlayColor: const Color(0x33EFAF1F),
+                trackHeight: 3,
+              ),
+              child: Slider(
+                value: valor,
+                onChanged: onCambio,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              '$pct%',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Color(0xFFEFAF1F),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

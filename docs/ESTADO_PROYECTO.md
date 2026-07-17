@@ -100,3 +100,26 @@ selector de dificultad de IA · sistema de señas.
 - El QR no sirve en online (los dispositivos no estan cerca): sustituirlo por algo util o quitarlo.
 - Hacer el codigo de sala pulsable: opcion de copiar y de compartir por WhatsApp u otra mensajeria.
 - Sonido del envite en el invitado: RESUELTO.
+
+
+## Novedades v1.5.0 (julio 2026)
+
+Multijugador ONLINE (por internet, Firebase Realtime Database):
+- Funciona de punta a punta: anfitrion + invitados por internet, rellenando con IA. Modos 2v2 / 3v3 / 4v4 segun cuanta gente entre.
+- Menu principal: "Multijugador" abre panel "ELIGE MODO" con WiFi y Online.
+- En Online se comparte por CODIGO (no por QR): se muestra grande, se toca para copiar y hay boton Compartir (WhatsApp u otra app).
+- Sonido del envite: ahora tambien suena en el invitado (antes solo en el anfitrion).
+
+Ajustes:
+- Nuevo control de VOLUMEN global en Opciones (debajo de Musica): afecta a musica del menu, efectos y voces. Se guarda entre sesiones.
+
+Mesa de juego:
+- Nombres largos: hasta 6 letras enteros; con mas, 4 primeras + "..." (ej. "Samuel1" -> "Samu..."). Ya no se parten en dos lineas.
+
+Tecnico:
+- Dependencia share_plus ^13.2.1. iOS minimo 15.0.
+
+Pendiente:
+- (online) sustituir/quitar del todo el QR donde ya no aplique.
+- Reglas de seguridad de Firebase (Fase 4) + reintroducir login en movil.
+- Probar reconexiones en partida online.

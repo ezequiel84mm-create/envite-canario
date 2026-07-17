@@ -7,11 +7,13 @@ class MusicController {
   static final MusicController instance = MusicController._();
 
   AudioPlayer? _player;
+  double _volumen = 1.0;
   bool Function()? _puedeReanudar;
 
   void registrar(AudioPlayer player, bool Function() puedeReanudar) {
     _player = player;
     _puedeReanudar = puedeReanudar;
+    player.setVolume(_volumen);
   }
 
   void pausar() {
@@ -22,5 +24,10 @@ class MusicController {
     if (_puedeReanudar != null && _puedeReanudar!()) {
       _player?.resume();
     }
+  }
+
+  void setVolumen(double v) {
+    _volumen = v;
+    _player?.setVolume(v);
   }
 }

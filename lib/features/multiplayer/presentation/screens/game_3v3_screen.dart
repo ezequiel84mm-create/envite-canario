@@ -124,6 +124,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   void initState() {
     super.initState();
     MusicController.instance.pausar();
+    _sfxPlayer.setVolume(AppSettings.instance.volumen);
+    _repartoPlayer.setVolume(AppSettings.instance.volumen);
     if (widget.config != null) {
       _numJug = widget.config!.numJugadores;
     }
@@ -1937,7 +1939,10 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              etiqueta,
+              etiqueta.length <= 6 ? etiqueta : '${etiqueta.substring(0, 4)}...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: TextStyle(
                 color: esTurno ? const Color(0xFF3A2B12) : Colors.white,
                 fontSize: 12,
@@ -1976,7 +1981,10 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              etiqueta,
+              etiqueta.length <= 6 ? etiqueta : '${etiqueta.substring(0, 4)}...',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: TextStyle(
                 color: esTurno ? const Color(0xFF3A2B12) : Colors.white,
                 fontSize: 10,

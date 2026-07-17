@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../domain/models/estado_sala.dart';
 import '../../domain/models/config_partida.dart';
@@ -641,6 +643,10 @@ class _SalaScreenState extends State<SalaScreen> {
   }
 
   Widget _qrCentral() {
+    if (widget.online) {
+      if (!widget.soyAnfitrion) return const SizedBox.shrink();
+      return _codigoOnline();
+    }
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -673,8 +679,8 @@ class _SalaScreenState extends State<SalaScreen> {
                   ),
           ),
           const SizedBox(height: 6),
-          Text(
-            widget.online ? 'Comparte este codigo' : 'Escanea para unirte',
+          const Text(
+            'Escanea para unirte',
             style: TextStyle(
               color: Color(0xFF3A2B12),
               fontSize: 12,
@@ -700,6 +706,118 @@ class _SalaScreenState extends State<SalaScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // Tarjeta del codigo en modo ONLINE (sin QR: los jugadores no estan cerca).
+  Widget _codigoOnline() {
+    final codigo = _ip;
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5E6C8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF8A6A35), width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Codigo de la sala',
+            style: TextStyle(
+              color: Color(0xFF3A2B12),
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          GestureDetector(
+            onTap: codigo == null ? null : _copiarCodigo,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A1A0A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    codigo ?? '****',
+                    style: const TextStyle(
+                      color: Color(0xFFEFAF1F),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 4,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.copy, color: Color(0xFFEFAF1F), size: 16),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Toca el codigo para copiarlo',
+            style: TextStyle(color: Color(0xFF6A5330), fontSize: 10),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: codigo == null ? null : _compartirCodigo,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF25D366), Color(0xFF128C7E)],
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.share, color: Colors.white, size: 16),
+                  SizedBox(width: 7),
+                  Text(
+                    'Compartir',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _copiarCodigo() {
+    final codigo = _ip;
+    if (codigo == null) return;
+    Clipboard.setData(ClipboardData(text: codigo));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Codigo copiado'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _compartirCodigo() async {
+    final codigo = _ip;
+    if (codigo == null) return;
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Unete a mi partida de Envite Canario. Codigo de sala: $codigo',
       ),
     );
   }
