@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/settings/mazo_assets.dart';
 import '../../../sala/domain/models/config_partida.dart';
 import '../../../sala/network/transporte_sala.dart';
+import '../../../online/conexion_sala_online.dart';
 import '../../../sala/network/mensajes_sala.dart';
 import '../../network/mensajes_red.dart';
 import '../../network/traductor_cartas.dart';
@@ -134,6 +135,15 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
       if (_soyAnfitrion) {
         _repartirNuevaRonda();
       } else {
+        final c = widget.conexion;
+        if (c is ConexionSalaOnline) {
+          c.alRecibirMiManoFija = (mano) {
+            if (!mounted) return;
+            setState(() {
+              _miManoRed = TraductorCartas.listaDesdeTexto(mano);
+            });
+          };
+        }
         _pedirEstadoConReintentos();
         _mensaje = 'Esperando reparto...';
       }
@@ -152,6 +162,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
     widget.conexion!.enviarAlAnfitrion(
         MensajeRed(TipoMensajeSala.jugarCarta, {'pedirEstado': true})
             .codificar());
+    final cMano = widget.conexion;
+    if (cMano is ConexionSalaOnline) cMano.pedirMiManoFija();
     Future.delayed(const Duration(milliseconds: 700),
         () => _pedirEstadoConReintentos(intento + 1));
   }
@@ -431,6 +443,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
           MensajeRed(TipoMensajeSala.miMano, {
             'mano': TraductorCartas.listaATexto(_manos[asiento]),
           }).codificar());
+      if (con is ConexionSalaOnline) {
+        con.escribirMano(jug.id, TraductorCartas.listaATexto(_manos[asiento]));
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../sala/network/transporte_sala.dart';
 
@@ -35,8 +36,12 @@ class ConexionSalaOnline implements TransporteSala {
   @override
   bool soyAnfitrion = false;
 
-  // Id propio aleatorio (sustituye al uid del login, que no usamos en Windows).
-  late final String _miUid = _generarUid();
+  // Id propio ESTABLE: usamos el uid del login anonimo, que persiste entre
+  // reinicios de la app/dispositivo. Es imprescindible para reconocer a quien
+  // vuelve tras una desconexion (reconexion). Si no hay login (Windows, o si
+  // fallo), caemos a un id aleatorio, unico al menos dentro de la sesion.
+  late final String _miUid =
+      FirebaseAuth.instance.currentUser?.uid ?? _generarUid();
 
   final Map<String, bool> _invitados = {};
   final List<StreamSubscription<DatabaseEvent>> _subs = [];
@@ -53,6 +58,12 @@ class ConexionSalaOnline implements TransporteSala {
   void Function()? alConectarConAnfitrion;
   @override
   void Function()? alPerderAnfitrion;
+
+  // Canal FIABLE para la mano del invitado: el anfitrion la ESCRIBE en un sitio
+  // fijo (manos/<id>) y el invitado la OBSERVA con onValue. A diferencia del
+  // buzon aInvitado (push+borrar, que pierde mensajes en rafaga al arranque),
+  // onValue siempre entrega el ultimo valor. Arregla "invitado sin cartas".
+  void Function(List<dynamic> mano)? alRecibirMiManoFija;
 
   @override
   int get numInvitados => _invitados.length;
@@ -135,6 +146,24 @@ class ConexionSalaOnline implements TransporteSala {
     _sala.child('aInvitado/$idInvitado').push().set(mensaje);
   }
 
+  // Escribe la mano de un invitado en un sitio fijo (canal fiable, no buzon).
+  void escribirMano(String idInvitado, List<String> mano) {
+    if (_codigo == null) return;
+    _sala.child('manos/$idInvitado').set(mano);
+  }
+
+  // El invitado LEE su mano del sitio fijo (get puntual). Cierra el hueco de que
+  // onValue solo entrega al cambiar: si la mano se escribio antes de tener el
+  // callback listo, este get la recupera igual. Se llama en el bucle de espera.
+  Future<void> pedirMiManoFija() async {
+    if (_codigo == null || _miIdInvitado == null) return;
+    try {
+      final snap = await _sala.child('manos/$_miIdInvitado').get();
+      final v = snap.value;
+      if (v is List) alRecibirMiManoFija?.call(v);
+    } catch (_) {}
+  }
+
   // ===== INVITADO =====
   @override
   Future<bool> unirseASala(String codigo) async {
@@ -155,6 +184,12 @@ class ConexionSalaOnline implements TransporteSala {
         final msg = e.snapshot.value?.toString() ?? '';
         if (msg.isNotEmpty) alRecibirDeAnfitrion?.call(msg);
         e.snapshot.ref.remove();
+      }));
+
+      _subs.add(
+          _sala.child('manos/$_miIdInvitado').onValue.listen((e) {
+        final v = e.snapshot.value;
+        if (v is List) alRecibirMiManoFija?.call(v);
       }));
 
       _subs.add(_sala.child('anfitrion').onValue.listen((e) {

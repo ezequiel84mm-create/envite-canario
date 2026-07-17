@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.6.0+15
+- **Versión actual:** 1.6.1+16
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -121,6 +121,27 @@ Tecnico:
 
 Pendiente:
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.1 (julio 2026)
+
+Arreglo importante del online (el invitado se quedaba sin cartas al empezar):
+- Causa raiz: la mano del invitado viajaba por el "buzon" aInvitado (push + borrar
+  al leer). En rafaga al arranque ese buzon PIERDE mensajes; y como la mano no
+  cambia (es el turno del invitado, nadie tira), no se reenviaba -> invitado sin
+  cartas. Dependia de milisegundos (siempre fallaba en release, nunca en debug).
+- Solucion: canal FIABLE para la mano. El anfitrion la ESCRIBE en
+  salas/<cod>/manos/<idInvitado> con set; el invitado la OBSERVA con onValue y
+  ademas la LEE con un get puntual en cada reintento (cierra el hueco de que
+  onValue solo entrega en el momento de cambiar). En game_2v2/3v3/4v4_screen.dart
+  y conexion_sala_online.dart (escribirMano / alRecibirMiManoFija / pedirMiManoFija).
+- Cimiento de reconexion (R1): el online usa ahora el uid ESTABLE del login
+  anonimo (persiste entre reinicios) en vez de un id aleatorio por sesion.
+
+Pendiente:
+- Reconexion online R2 (silla reservada + reconexion por wifi) y R3 (volver a la
+  partida al reabrir).
+- Bug 1v1 online: solo suena Zeky, nunca Manolo.
 
 
 ## Novedades v1.6.0 (julio 2026)
