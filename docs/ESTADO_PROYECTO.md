@@ -120,6 +120,5 @@ Tecnico:
 - Dependencia share_plus ^13.2.1. iOS minimo 15.0.
 
 Pendiente:
-- (online) sustituir/quitar del todo el QR donde ya no aplique.
 - Reglas de seguridad de Firebase (Fase 4) + reintroducir login en movil.
 - Probar reconexiones en partida online.

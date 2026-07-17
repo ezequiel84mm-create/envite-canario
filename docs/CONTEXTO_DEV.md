@@ -38,6 +38,5 @@ Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
 - Editar en la Mac: si el puente llega, directo; si no, con scripts python heredoc y anclajes precisos.
 
 ## Pendiente
-- (online) sustituir o quitar del todo el QR donde ya no aplica (los dispositivos no estan cerca).
 - Reglas de seguridad de Firebase (Fase 4) + reintroducir login en movil.
 - Probar reconexiones en partida online.
