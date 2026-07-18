@@ -1,5 +1,13 @@
 # PLAN MAESTRO — MODO MULTIJUGADOR (Envite Canario)
 
+> **NOTA (documento histórico).** Este es el PLAN ORIGINAL de diseño. Varias cosas
+> ya están hechas o cambiaron: el **4v4 SÍ** se implementó; el modo **ONLINE por
+> internet ya funciona** (no es "fase futura"); los asientos se rellenan en zigzag
+> y el anfitrión los intercambia (no los elige cada jugador); el "listo" es
+> automático al sentarse. Para el estado REAL y al día, ver
+> `docs/ESTADO_PROYECTO.md` y `docs/CONTEXTO_DEV.md`. Este fichero se conserva como
+> referencia de las reglas y el diseño original.
+
 Documento de referencia. Recoge todas las decisiones de diseño y las reglas
 por modo de juego. Sirve de guía para la construcción por fases.
 

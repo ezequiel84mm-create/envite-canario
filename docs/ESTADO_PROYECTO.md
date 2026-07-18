@@ -19,7 +19,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 - **Apple dev team:** `4BADJNW5CA` (cuenta gratis, el certificado caduca cada 7 días)
 
 ## Modos de juego
-1v1, 2v2, 3v3, 4v4 (contra IA y multijugador por WiFi local).
+1v1, 2v2, 3v3, 4v4 (contra IA, multijugador por WiFi local y online por internet).
 Baraja española de 40 cartas.
 
 ## Cambios v1.3.4+10
@@ -92,13 +92,14 @@ selector de dificultad de IA · sistema de señas.
 - **Distribución — siguiente paso grande:** publicar en **Google Play** (25 $ pago
   único) para tener enlace, estadísticas y actualizaciones automáticas. Apple/App Store
   (99 €/año) aparcado hasta ver tracción.
-- **Multijugador online (Firebase):** el salto grande. Empezar por Firebase + login
-  anónimo + salas por código; probar en 1v1 antes que en los modos por equipos.
+- **Multijugador online (Firebase): HECHO** (desde v1.5.0). Salas por código,
+  anfitrión + invitados por internet rellenando con IA, en 2v2/3v3/4v4. Reglas de
+  seguridad y login anónimo desde v1.6.0. Modo/lobby robustos desde v1.6.3.
 
 
 ## Ideas pendientes (online)
-- El QR no sirve en online (los dispositivos no estan cerca): sustituirlo por algo util o quitarlo.
-- Hacer el codigo de sala pulsable: opcion de copiar y de compartir por WhatsApp u otra mensajeria.
+- El QR no sirve en online: RESUELTO (en online se comparte por CODIGO, no por QR).
+- Codigo de sala pulsable (copiar / compartir por WhatsApp): RESUELTO.
 - Sonido del envite en el invitado: RESUELTO.
 
 

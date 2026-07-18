@@ -11,6 +11,21 @@ flutter run -d 00008130-000654A22E9A001C --release
 - `--release`: build optimizada (sin la sobrecarga de debug).
 - Device id del iPhone: `00008130-000654A22E9A001C`.
 
+## Lanzar en el iPad físico de Zeky
+
+```bash
+flutter run -d 00008027-000879020287002E --release
+```
+
+- Device id del iPad: `00008027-000879020287002E`.
+
+## Generar el APK (para compartir por WhatsApp)
+
+```bash
+flutter build apk --release
+cp build/app/outputs/flutter-apk/app-release.apk ~/Desktop/ENVITEv<version>.apk
+```
+
 ## Lanzar en el escritorio del Mac (iteración rápida)
 
 ```bash

@@ -8,15 +8,16 @@ El **Envite** es un juego de cartas tradicional de las Islas Canarias que se jue
 
 ## Modos de juego
 
-- **1 vs IA** — juega contra la máquina con lógica de decisión automática.
-- **1 vs 1 en red** — reta a otro jugador en la misma red local vía QR.
+- **Contra la IA** — 1v1, 2v2, 3v3 y 4v4 contra la máquina.
+- **Multijugador local (WiFi)** — varios jugadores en la misma red local, emparejados por código; los huecos vacíos se rellenan con IA.
+- **Multijugador online (por internet)** — salas por código compartible; anfitrión + invitados por internet (Firebase), rellenando con IA. Modos 2v2 / 3v3 / 4v4.
 
 ## Características
 
 - Reglas completas del juego (envite, reenvite, tumbo forzoso a 11 piedras).
 - Guía rápida con audio para aprender las reglas.
 - Diseño de mesa estilo tradicional con marcador de garbanzos y abanicos.
-- Multijugador en red local con emparejamiento por código QR.
+- Multijugador local (WiFi) y online (por internet), emparejamiento por código; señas privadas entre compañeros de equipo.
 
 ## Requisitos
 

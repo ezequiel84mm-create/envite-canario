@@ -18,7 +18,7 @@ Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).
 ## Comandos habituales
 - Ejecutar: flutter run -d <device_id> --release
 - APK: flutter build apk --release  ->  build/app/outputs/flutter-apk/app-release.apk
-- Convencion de nombre del APK al Escritorio: ENVITEv<version>.apk  (ej. ENVITEv1.5.apk)
+- Convencion de nombre del APK al Escritorio: ENVITEv<version>.apk  (ej. ENVITEv1.6.3.apk)
 
 ## Firebase (online)
 - Realtime Database, proyecto envite-canario, region europe-west1. Fase 4 hecha (v1.6.0): reglas de seguridad activas (`.read`/`.write` = `auth != null`), ya NO en modo prueba abierto.
@@ -44,8 +44,21 @@ canal FIABLE: el anfitrion la ESCRIBE en salas/<cod>/manos/<idInvitado> (set) y
 el invitado la OBSERVA con onValue + un get puntual en el bucle de espera
 (escribirMano / alRecibirMiManoFija / pedirMiManoFija). Arreglado en v1.6.1.
 
+## Estado de la sala / arranque (online) - IMPORTANTE
+- El LOBBY va por CANAL FIABLE (v1.6.3): el anfitrion escribe la sala en
+  salas/<cod>/estado (set, JSON) y el invitado la observa con onValue + un get de
+  backup al unirse (escribirEstadoSala / alRecibirEstadoSala / pedirEstadoSala en
+  conexion_sala_online.dart; sala_screen.dart). No fiarse solo del buzon aInvitado.
+- ARRANQUE (v1.6.3): al pulsar EMPEZAR el anfitrion mete la sala COMPLETA dentro
+  del mensaje y el invitado arranca con esa (no con su copia, que podia estar
+  vieja). Asi el invitado nunca entra en el modo equivocado ni con asientos mal.
+
 ## Pendiente
-- Reconexion online: hecho el cimiento (R1: id estable con el uid del login).
-  Faltan R2 (silla reservada + reconexion por wifi) y R3 (volver a la partida al
-  reabrir la app).
-- Probar reconexiones reales en partida online.
+- Reconexion online (que un jugador que se cae vuelva a su sitio): SIN hacer. El
+  uid estable del login (R1) si esta en la conexion (v1.6.1) pero es solo
+  informativo. Se intento R2 (ventana de gracia + reconexion) y se REVIRTIO por
+  romper la partida; hay que redisenarla con calma. Ojo al anfitrion: al caerse
+  borra la sala (onDisconnect) y termina la partida para todos.
+- Publicar en Google Play (25 $) para distribucion con enlace/estadisticas.
+- Aviso de Kotlin (KGP) en el build: solo un aviso; firebase_database aun no tiene
+  version compatible (issue abierto de Firebase). Esperar y actualizar cuando salga.
