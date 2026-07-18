@@ -1245,6 +1245,9 @@ class _Game4v4ScreenState extends State<Game4v4Screen> {
   }
 
   void _repartirNuevaRonda() {
+    // En red, solo el anfitrión (el cerebro) reparte. Un invitado repartiría
+    // cartas locales falsas y se desincronizaría de la partida real.
+    if (_enRed && !_soyAnfitrion) return;
     if (AppSettings.instance.efectosActivados) {
       _repartoPlayer.play(AssetSource('audio/sonido_reparto.mp3'));
     }
@@ -1686,7 +1689,8 @@ void _jugadorDesconectado(String idInvitado) {
                   ),
                 ),
 
-                if (_rondaTerminada)
+                // Solo el anfitrión (o el modo local) puede repartir a mano.
+                if (_rondaTerminada && _soyAnfitrion)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: ElevatedButton(

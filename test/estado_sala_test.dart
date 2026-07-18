@@ -12,12 +12,22 @@ void main() {
       expect(sala.sePuedeEmpezar, isFalse);
     });
 
-    test('permite empezar cuando los jugadores humanos están listos y los equipos están equilibrados', () {
+    test('permite empezar con mesa completa (4), equipos equilibrados y humanos listos', () {
+      final sala = EstadoSala.vacia('anfitrion');
+      sala.asientos[0].ocupante = const JugadorSala(id: 'a', apodo: 'Ana', listo: true);
+      sala.asientos[1].ocupante = const JugadorSala(id: 'b', apodo: 'Berto', listo: true);
+      sala.asientos[2].ocupante = JugadorSala.ia(1);
+      sala.asientos[3].ocupante = JugadorSala.ia(2);
+
+      expect(sala.sePuedeEmpezar, isTrue);
+    });
+
+    test('no permite empezar con solo 2 jugadores (para eso está el 1v1)', () {
       final sala = EstadoSala.vacia('anfitrion');
       sala.asientos[0].ocupante = const JugadorSala(id: 'a', apodo: 'Ana', listo: true);
       sala.asientos[1].ocupante = const JugadorSala(id: 'b', apodo: 'Berto', listo: true);
 
-      expect(sala.sePuedeEmpezar, isTrue);
+      expect(sala.sePuedeEmpezar, isFalse);
     });
   });
 }

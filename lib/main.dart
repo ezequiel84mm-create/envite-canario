@@ -432,6 +432,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _iaDecideTumbo() {
+    if (!mounted) return; // la pantalla se cerró mientras esperaba el delay
     final juega = Random().nextDouble() < 0.7;
     _decidirTumbo(juega);
   }
@@ -509,6 +510,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _iaSacaPrimera() {
+    if (!mounted) return; // la pantalla se cerró mientras esperaba el delay
     if (ia.hand.isEmpty) return;
     if (envitePropuestoPorIA) return;
     final cartaElegida = AiPlayer.elegirCarta(
@@ -527,6 +529,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _jugarCartaIA() {
+    if (!mounted) return; // la pantalla se cerró mientras esperaba el delay
     if (envitePropuestoPorIA) return;
     final paloInicial = bazaActual.first.card.suit;
     final validas = TrickEngine.cartasValidas(
@@ -734,6 +737,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void _lanzarEnvite() {
+    if (!mounted) return; // la pantalla se cerró mientras esperaba el delay
     if (apuesta.esMaximo) return;
     if (manoEsDeTumbo) return;
     _sonidoApuesta(apuesta.nivelIndex + 1);

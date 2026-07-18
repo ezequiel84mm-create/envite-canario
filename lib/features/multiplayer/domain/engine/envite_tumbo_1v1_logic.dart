@@ -85,6 +85,12 @@ class EnviteTumbo1v1Logic {
           turnoApuesta: -1,
         );
       case 'subir':
+        // Tope de la escalera (4 = Chico Fuera): por encima no se puede
+        // subir. Sin este límite, un mensaje de red desincronizado podría
+        // llevar el nivel a 5+ y romper los accesos a valores[nivel].
+        if (nivelPropuesto >= 4) {
+          return this;
+        }
         return copyWith(
           nivelPropuesto: nivelPropuesto + 1,
           quienCanto: quienCanto == 0 ? 1 : 0,

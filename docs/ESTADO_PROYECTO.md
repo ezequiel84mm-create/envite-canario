@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.6.3+18
+- **Versión actual:** 1.6.4+19
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -122,6 +122,28 @@ Tecnico:
 
 Pendiente:
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.4 (julio 2026)
+
+Arreglos de estabilidad (salidos de una revision general del codigo):
+- Boton "Nueva ronda": en partidas en red ya solo lo ve el anfitrion. Un
+  invitado podia pulsarlo tras el fin de mano y repartirse cartas locales
+  falsas quedando desincronizado de la partida real. Guardia doble: el boton
+  se oculta y _repartirNuevaRonda ignora al invitado
+  (game_2v2/3v3/4v4_screen.dart).
+- Envite 1v1: el "subir" queda capado al nivel maximo Chico Fuera en
+  envite_tumbo_1v1_logic.dart. Antes un mensaje de red desincronizado podia
+  llevar el nivel a 5+ y romper los accesos a valores[nivel] con crash.
+- 1v1 contra la IA (main.dart): comprobaciones mounted en las jugadas
+  retardadas de la IA (_iaSacaPrimera / _jugarCartaIA / _iaDecideTumbo /
+  _lanzarEnvite). Evita el error de setState tras cerrar la pantalla si
+  salias de la partida justo en ese momento.
+- Tests: estado_sala_test.dart actualizado a la regla actual de la sala
+  (empezar con mesa completa de 4/6/8) y test nuevo de que con 2 jugadores
+  no se puede empezar. flutter analyze y flutter test en verde con 12 tests.
+- Probado en iPhone y iPad: partida en red con fin de mano correcto en el
+  invitado.
 
 
 ## Novedades v1.6.3 (julio 2026)

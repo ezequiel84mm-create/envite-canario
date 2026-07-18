@@ -1117,6 +1117,9 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
   }
 
   void _repartirNuevaRonda() {
+    // En red, solo el anfitrión (el cerebro) reparte. Un invitado repartiría
+    // cartas locales falsas y se desincronizaría de la partida real.
+    if (_enRed && !_soyAnfitrion) return;
     // Reparto en su propio reproductor para que el silbido de las senas
     // (que usa _sfxPlayer) no lo corte.
     if (AppSettings.instance.efectosActivados) {
@@ -1709,7 +1712,8 @@ class _Game3v3ScreenState extends State<Game3v3Screen> {
                   ),
                 ),
 
-                if (_rondaTerminada)
+                // Solo el anfitrión (o el modo local) puede repartir a mano.
+                if (_rondaTerminada && _soyAnfitrion)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: ElevatedButton(

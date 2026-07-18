@@ -37,6 +37,7 @@ flutter run -d macos
 ```bash
 flutter devices        # lista dispositivos conectados y sus ids
 flutter analyze        # análisis estático (dejar en verde antes de dar por bueno un cambio)
+flutter test           # tests automáticos (dejar en verde igual que el analyze)
 ```
 
 Teclas mientras corre `flutter run`: `r` hot reload · `R` hot restart · `q` salir.
