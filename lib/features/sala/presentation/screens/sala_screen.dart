@@ -148,6 +148,9 @@ class _SalaScreenState extends State<SalaScreen> {
       _sala.aMapa(),
     ).codificar();
     _conexion.enviarATodos(msg);
+    // Canal fiable (online): escribe tambien el estado en un sitio fijo.
+    final c = _conexion;
+    if (c is ConexionSalaOnline) c.escribirEstadoSala(_sala.aMapa());
   }
 
   // ===== ORDEN OBLIGATORIO DE ASIENTOS =====
@@ -194,6 +197,18 @@ class _SalaScreenState extends State<SalaScreen> {
 
   // ===== INVITADO: callbacks de red =====
   void _configurarCallbacksInvitado() {
+    final cOnline = _conexion;
+    if (cOnline is ConexionSalaOnline) {
+      cOnline.alRecibirEstadoSala = (estado) {
+        if (!mounted) return;
+        setState(() {
+          _sala = EstadoSala.desdeMapa(estado);
+          _estado = _sala.sePuedeEmpezar
+              ? '¡Todos listos! El anfitrión puede empezar.'
+              : 'En la sala. Esperando al anfitrión...';
+        });
+      };
+    }
     _conexion.alRecibirDeAnfitrion = (texto) {
       final msg = MensajeRed.decodificar(texto);
       if (msg == null) return;
@@ -207,6 +222,11 @@ class _SalaScreenState extends State<SalaScreen> {
       } else if (msg.tipo == TipoMensajeSala.tuId) {
         _miIdInvitado = msg.datos['id'] ?? '';
       } else if (msg.tipo == TipoMensajeSala.empezar) {
+        // El EMPEZAR trae la sala definitiva: la aplicamos ANTES de arrancar,
+        // para no entrar con una foto vieja (modo o asientos incorrectos).
+        if (msg.datos.isNotEmpty) {
+          _sala = EstadoSala.desdeMapa(msg.datos);
+        }
         _irAlJuego();
       }
     };
@@ -327,8 +347,11 @@ class _SalaScreenState extends State<SalaScreen> {
 
   // El anfitrión pulsa EMPEZAR: avisa a todos y va al juego.
   void _empezarPartida() {
+    // Mandamos la sala COMPLETA dentro del EMPEZAR para que el invitado arranque
+    // con la foto definitiva (asientos + IA), aunque se le haya perdido algun
+    // estadoSala. Evita entrar en el modo equivocado o con los asientos mal.
     _conexion.enviarATodos(
-      MensajeRed(TipoMensajeSala.empezar, {}).codificar(),
+      MensajeRed(TipoMensajeSala.empezar, _sala.aMapa()).codificar(),
     );
     _irAlJuego();
   }
@@ -356,6 +379,8 @@ class _SalaScreenState extends State<SalaScreen> {
         TipoMensajeSala.hola,
         {'alias': AppSettings.instance.alias},
       ).codificar());
+      final c = _conexion;
+      if (c is ConexionSalaOnline) c.pedirEstadoSala();
       setState(() => _estado = 'Conectado. Esperando sala...');
     } else {
       setState(() => _estado = 'No se pudo conectar a la sala.');

@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.6.2+17
+- **Versión actual:** 1.6.3+18
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -121,6 +121,21 @@ Tecnico:
 
 Pendiente:
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.3 (julio 2026)
+
+Arreglo: el invitado entraba en el MODO equivocado (p.ej. 4v4 en anfitrion pero
+2v2 en invitado) y con asientos/identidades mal. Causa: al pulsar EMPEZAR el
+invitado arrancaba con SU copia de la sala, que podia estar vieja/incompleta si
+se perdio algun estadoSala (buzon aInvitado con fugas). Solucion: el anfitrion
+manda la sala COMPLETA dentro del mensaje EMPEZAR y el invitado arranca con esa
+(sala_screen.dart: _empezarPartida + handler de empezar).
+Ademas el LOBBY va ahora por CANAL FIABLE: el anfitrion escribe el estado de la
+sala en salas/<cod>/estado (set, JSON) y el invitado lo observa con onValue + un
+get de backup al unirse (conexion_sala_online.dart: escribirEstadoSala /
+alRecibirEstadoSala / pedirEstadoSala; sala_screen.dart). El invitado ya ve
+siempre los asientos llenos, sin depender del buzon aInvitado.
 
 
 ## Novedades v1.6.2 (julio 2026)

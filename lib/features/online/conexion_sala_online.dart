@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -64,6 +65,11 @@ class ConexionSalaOnline implements TransporteSala {
   // buzon aInvitado (push+borrar, que pierde mensajes en rafaga al arranque),
   // onValue siempre entrega el ultimo valor. Arregla "invitado sin cartas".
   void Function(List<dynamic> mano)? alRecibirMiManoFija;
+
+  // Canal FIABLE del estado de la SALA (lobby): el anfitrion lo ESCRIBE en un
+  // sitio fijo y el invitado lo OBSERVA con onValue (+ get de backup). Evita que
+  // el lobby del invitado se quede vacio si se pierde un mensaje del buzon.
+  void Function(Map<String, dynamic> estado)? alRecibirEstadoSala;
 
   @override
   int get numInvitados => _invitados.length;
@@ -164,6 +170,24 @@ class ConexionSalaOnline implements TransporteSala {
     } catch (_) {}
   }
 
+  // El anfitrion escribe el estado de la sala en un sitio fijo (canal fiable).
+  void escribirEstadoSala(Map<String, dynamic> estado) {
+    if (_codigo == null) return;
+    _sala.child('estado').set(jsonEncode(estado));
+  }
+
+  // El invitado LEE el estado de la sala de una vez (backup del onValue).
+  Future<void> pedirEstadoSala() async {
+    if (_codigo == null) return;
+    try {
+      final snap = await _sala.child('estado').get();
+      final v = snap.value;
+      if (v is String) {
+        alRecibirEstadoSala?.call(jsonDecode(v) as Map<String, dynamic>);
+      }
+    } catch (_) {}
+  }
+
   // ===== INVITADO =====
   @override
   Future<bool> unirseASala(String codigo) async {
@@ -190,6 +214,13 @@ class ConexionSalaOnline implements TransporteSala {
           _sala.child('manos/$_miIdInvitado').onValue.listen((e) {
         final v = e.snapshot.value;
         if (v is List) alRecibirMiManoFija?.call(v);
+      }));
+
+      _subs.add(_sala.child('estado').onValue.listen((e) {
+        final v = e.snapshot.value;
+        if (v is String) {
+          alRecibirEstadoSala?.call(jsonDecode(v) as Map<String, dynamic>);
+        }
       }));
 
       _subs.add(_sala.child('anfitrion').onValue.listen((e) {
