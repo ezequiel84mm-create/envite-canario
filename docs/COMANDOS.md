@@ -41,3 +41,15 @@ flutter test           # tests automáticos (dejar en verde igual que el analyze
 ```
 
 Teclas mientras corre `flutter run`: `r` hot reload · `R` hot restart · `q` salir.
+
+## Pendientes
+
+- **APK más ligero para WhatsApp** (el universal pesa ~124 MB). Probar:
+
+  ```bash
+  flutter build apk --release --split-per-abi
+  cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ~/Desktop/ENVITEv<version>.apk
+  ```
+
+  El `arm64-v8a` vale para cualquier Android moderno (64 bits) y suele pesar
+  menos de la mitad. Sin probar todavía.

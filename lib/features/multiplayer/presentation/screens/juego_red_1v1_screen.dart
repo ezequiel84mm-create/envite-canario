@@ -58,6 +58,9 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
   int _chicosAnfitrion = 0;
   int _chicosInvitado = 0;
   String _pendienteDialogo = 'ninguno';
+  // Candado del invitado: evita reabrir el diálogo de fin de mano si el
+  // anfitrión reenvía el estado antes de repartir la siguiente.
+  bool _dialogoFinYaMostrado = false;
   int _piedrasSumadasDialogo = 0;
   int _ganadorDialogoAsiento = -1;
   // Nivel de apuesta actual: 0=Base,1=Envido,2=Siete,3=Nueve,4=ChicoFuera
@@ -350,19 +353,29 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
         final carta = TraductorCartas.desdeTexto(msg.datos['carta']);
         if (carta != null) _anfitrionRecibeJugada(carta);
       } else if (msg.tipo == TipoMensaje.proponerEnvite) {
-        // El invitado (asiento 1) canta un envite.
+        // El invitado (asiento 1) canta un envite, solo si le toca poder
+        // cantar (mismo filtro que aplica su UI, pero con el estado bueno).
         _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
-        _anfitrionRegistraCanto(1);
+        if (_enviteTumboLogic.puedeCantar(1)) _anfitrionRegistraCanto(1);
       } else if (msg.tipo == TipoMensaje.respuestaEnvite) {
-        // El invitado responde a un envite.
+        // El invitado responde a un envite: solo vale si hay un envite
+        // pendiente y lo cantó el anfitrión (asiento 0).
         _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
-        _anfitrionResuelveRespuesta(msg.datos['accion']);
+        final accion = msg.datos['accion'];
+        if (accion is String &&
+            _enviteTumboLogic.hayEnvitePendiente &&
+            _enviteTumboLogic.quienCanto == 0) {
+          _anfitrionResuelveRespuesta(accion);
+        }
       } else if (msg.tipo == TipoMensaje.hola) {
         _vozAsiento1 = msg.datos['voz'] ?? _vozAsiento1;
         // El invitado pide el estado actual: se lo reenviamos.
         _enviarEstado();
       } else if (msg.tipo == TipoMensaje.decisionTumbo) {
-        _anfitrionResuelveTumbo(msg.datos['juega'] == true);
+        // Solo vale si quien decide el tumbo es el invitado (asiento 1).
+        if (_quienDecideTumbo == 1) {
+          _anfitrionResuelveTumbo(msg.datos['juega'] == true);
+        }
       } else if (msg.tipo == TipoMensaje.proponerRenuncio) {
         // El invitado propone renuncio: el anfitrion decide.
         _mostrarPropuestaRenuncio();
@@ -434,7 +447,13 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
       _piedrasSumadasDialogo = d['piedrasSumadasDialogo'] ?? 0;
       _ganadorDialogoAsiento = d['ganadorDialogoAsiento'] ?? -1;
     });
-    if (_pendienteDialogo != 'ninguno' && anteriorDialogo == 'ninguno') {
+    if (_pendienteDialogo == 'ninguno') {
+      _dialogoFinYaMostrado = false; // mano nueva en marcha: rearmar aviso
+    }
+    if (_pendienteDialogo != 'ninguno' &&
+        anteriorDialogo == 'ninguno' &&
+        !_dialogoFinYaMostrado) {
+      _dialogoFinYaMostrado = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mostrarDialogoFinRed();
       });
@@ -508,6 +527,15 @@ class _JuegoRed1v1ScreenState extends State<JuegoRed1v1Screen> {
 
   // El anfitrión procesa que el invitado jugó.
   void _anfitrionRecibeJugada(CardModel carta) {
+    // Mismos candados que _jugarCarta aplica en local: turno del invitado,
+    // ronda viva, sin recogida ni envite/tumbo pendientes, y carta en mano.
+    if (_rondaTerminada || _recogiendo) return;
+    if (_turno != 1) return;
+    if (_quienDecideTumbo != -1) return;
+    if (_enviteCantado) return;
+    final enMano = _manoInvitado
+        .any((c) => c.suit == carta.suit && c.value == carta.value);
+    if (!enMano) return;
     // El oponente del invitado es el anfitrion: su carta (si ya jugo en
     // esta baza) define el palo inicial. Validar el arrastre.
     final validas = _cartasValidasDe(_manoInvitado, _cartaMia);

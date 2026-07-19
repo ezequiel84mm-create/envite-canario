@@ -1,6 +1,6 @@
 # Contexto de desarrollo (handoff)
 
-Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.6.4+19.
+Juego: Envite Canario (Flutter). Repo privado: github.com/ezequiel84mm-create/envite-canario, rama main. Version actual: 1.6.5+20.
 
 ## Como ponerse al dia
 Leer tambien docs/ESTADO_PROYECTO.md (historial y novedades por version).

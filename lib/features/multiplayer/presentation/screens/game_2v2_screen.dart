@@ -71,6 +71,9 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
   int _votosRenuncioTotal = 0;
   // ===== Diálogo fin de mano/chico/partida =====
   String _pendienteDialogo = 'ninguno'; // ninguno/mano/chico/partida
+  // Candado del invitado: evita reabrir el diálogo de fin de mano si el
+  // anfitrión reenvía el estado antes de repartir la siguiente.
+  bool _dialogoFinYaMostrado = false;
   int _piedrasSumadasDialogo = 0;
   int _ganadorDialogoEquipo = -1; // equipo (0/1) que gana lo que muestra el diálogo
   // ===== Tumbo por equipo =====
@@ -172,28 +175,48 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
         if (!mounted) return;
         final msg = MensajeRed.decodificar(texto);
         if (msg == null) return;
+        // Asiento REAL del emisor según su id de conexión: no fiarse del
+        // asiento/equipo que venga dentro del mensaje (estado atrasado o
+        // cliente alterado).
+        final asientoEmisor = _asientoDeInvitado(idInvitado);
         if (msg.tipo == TipoMensajeSala.jugarCarta) {
           if (msg.datos['pedirEstado'] == true) {
             _enviarEstadoJuego();
           } else {
             final carta = TraductorCartas.desdeTexto(msg.datos['carta']);
             final asiento = msg.datos['asiento'];
-            if (carta != null && asiento != null) {
+            if (carta != null && asiento != null && asiento == asientoEmisor) {
               _anfitrionRecibeJugada(asiento, carta);
             }
           }
         } else if (msg.tipo == TipoMensajeSala.proponerEnvite) {
           final equipo = msg.datos['equipo'];
-          if (equipo != null) _anfitrionRegistraCanto(equipo);
+          if (equipo != null &&
+              asientoEmisor >= 0 &&
+              equipo == _equipoDeAsiento(asientoEmisor)) {
+            _anfitrionRegistraCanto(equipo);
+          }
         } else if (msg.tipo == TipoMensajeSala.respuestaEnvite) {
-          _anfitrionResuelveRespuesta(msg.datos['accion']);
+          // Solo puede responder el equipo contrario al que cantó.
+          final accion = msg.datos['accion'];
+          if (accion is String &&
+              _enviteCantado &&
+              asientoEmisor >= 0 &&
+              _equipoDeAsiento(asientoEmisor) != _equipoCanto) {
+            _anfitrionResuelveRespuesta(accion);
+          }
         } else if (msg.tipo == TipoMensajeSala.decisionTumbo) {
-          _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
+          // Solo decide el equipo que está en el tumbo.
+          if (_equipoDecideTumbo != -1 &&
+              asientoEmisor >= 0 &&
+              _equipoDeAsiento(asientoEmisor) == _equipoDecideTumbo) {
+            _anfitrionResuelveTumboEquipo(msg.datos['juega'] == true);
+          }
         } else if (msg.tipo == TipoMensajeSala.enviarSena) {
-          final asiento = msg.datos['asiento'];
+          // La seña sale SIEMPRE del asiento real del emisor.
           final senaId = msg.datos['sena'];
-          if (asiento != null && senaId != null) {
-            _procesarSena(asiento, senaId);
+          if (asientoEmisor >= 0 && senaId != null) {
+            _procesarSena(asientoEmisor, senaId);
           }
         } else if (msg.tipo == TipoMensajeSala.proponerRenuncio) {
           final idProp = msg.datos['idProponente'] ?? idInvitado;
@@ -586,10 +609,16 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
 
   void _anfitrionRecibeJugada(int asiento, CardModel carta) {
     if (asiento != _turno || _rondaTerminada) return;
+    // Baza cerrada o recogiéndose: no se admite ninguna jugada más.
+    if (_recogiendo || _baza.length >= _numJug) return;
+    if (asiento < 0 || asiento >= _manos.length) return;
     final mano = _manos[asiento];
     final existe = mano.any((cc) =>
         cc.suit == carta.suit && cc.value == carta.value);
     if (!existe) return;
+    // Legalidad (arrastre, obligación de montar): el invitado la mira en su
+    // UI, pero su copia del estado puede ir atrasada. Manda el anfitrión.
+    if (!_validasDe(asiento).contains(carta)) return;
     _jugarCarta(asiento, carta);
     _enviarEstadoJuego();
   }
@@ -664,7 +693,13 @@ class _Game2v2ScreenState extends State<Game2v2Screen> {
     if (hayCantoNuevo) {
       _sonidoApuesta(_nivelPropuesto, equipoCanta: _equipoCanto);
     }
-    if (_pendienteDialogo != 'ninguno' && anteriorDialogo == 'ninguno') {
+    if (_pendienteDialogo == 'ninguno') {
+      _dialogoFinYaMostrado = false; // mano nueva en marcha: rearmar aviso
+    }
+    if (_pendienteDialogo != 'ninguno' &&
+        anteriorDialogo == 'ninguno' &&
+        !_dialogoFinYaMostrado) {
+      _dialogoFinYaMostrado = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mostrarDialogoFinEquipos();
       });
@@ -1367,6 +1402,17 @@ void _jugadorDesconectado(String idInvitado) {
       siguienteAsiento: _siguienteEnCirculo,
       numJugadores: _numJug,
     );
+  }
+
+  // Asiento del invitado con este id de conexión, o -1 si no está en la
+  // partida. Sirve para validar que cada mensaje viene de quien dice ser.
+  int _asientoDeInvitado(String idInvitado) {
+    final cfg = widget.config;
+    if (cfg == null) return -1;
+    for (final j in cfg.jugadores) {
+      if (j.id == idInvitado) return j.asiento;
+    }
+    return -1;
   }
 
   // Mi asiento en la partida (índice en la config cuyo id == idLocal).

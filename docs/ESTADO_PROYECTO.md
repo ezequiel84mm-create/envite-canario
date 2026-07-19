@@ -10,7 +10,7 @@ comandos en Terminal (scripts Python con heredoc, git). Claude escribe el códig
 ## Datos técnicos
 - **Ruta local:** `~/dev/envite_canario`
 - **GitHub:** `ezequiel84mm-create/envite-canario`, rama `main`
-- **Versión actual:** 1.6.4+19
+- **Versión actual:** 1.6.5+20
 - **iPhone (device fijo):** `flutter run -d 00008130-000654A22E9A001C --release`
 - **Mac:** `flutter run -d macos`
   - A veces da "Failed to foreground"; se abre con:
@@ -122,6 +122,31 @@ Tecnico:
 
 Pendiente:
 - Probar reconexiones en partida online.
+
+
+## Novedades v1.6.5 (julio 2026)
+
+Robustez de red (bloque 2 de la revision general; solo se rechazan mensajes
+ilegales, el juego normal no cambia):
+- El ANFITRION valida ahora todo lo que llega por red antes de aplicarlo:
+  - Jugadas: turno correcto, baza abierta (ni cerrada ni recogiendose),
+    carta en la mano Y legal segun cartasValidas (arrastre, obligacion de
+    montar). El invitado ya lo miraba en su UI, pero su copia del estado
+    puede ir atrasada; ahora manda el anfitrion.
+  - Envite: solo puede cantar quien tiene el turno de apuesta y solo puede
+    responder el equipo contrario al que canto. El tumbo solo lo decide el
+    equipo que esta en el tumbo.
+  - Senas y jugadas se atribuyen al asiento REAL del emisor (por su id de
+    conexion), no al asiento que diga el mensaje.
+  (game_2v2/3v3/4v4_screen.dart con helper _asientoDeInvitado;
+   juego_red_1v1_screen.dart con los mismos candados que _jugarCarta.)
+- Dialogo de fin de mano duplicado en el invitado: si el anfitrion reenviaba
+  el estado (p.ej. por un pedirEstado de otro invitado) despues de que el
+  invitado cerrara el dialogo, se le volvia a abrir. Candado
+  _dialogoFinYaMostrado que se rearma al llegar la mano nueva (las 4
+  pantallas de red).
+- Probado en iPhone y iPad por WiFi: mano completa con envite, sin cambios
+  en el juego normal.
 
 
 ## Novedades v1.6.4 (julio 2026)
